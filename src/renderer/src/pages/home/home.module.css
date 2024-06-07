@@ -12,25 +12,44 @@
 
 
 .container {
+    width: 90vw;
+    height: 90vh;
+
     display: flex;
 
-    gap: 10px;
-    width: 90vw;
+    gap: 8px;
 
-    max-width: 90vw;
-    max-height: 90vh;
+    box-sizing: border-box;
 
-    background-color: red;
+    /* background-color: red; */
+
+    overflow: auto;
 }
 
-.column {
+.left_content {
+    display: flex;
+    height: 90vh;
+
+    gap: 8px;
+
+    /* flex-grow: 1; */
+
+    /* box-sizing: border-box; */
+}
+
+.column, .columnThree {
     display: flex;
     flex-direction: column;
 
     width: fit-content;
-    
+    gap: 8px;
+
+    flex-grow: 1;
+    /* max-width: 30vw; */
+}
+
+.column {
     min-width: 15vw;
-    max-width: 30vw;
 }
 
 .columnTwo {
@@ -38,27 +57,47 @@
     flex-direction: column;
 
     width: fit-content;
+    flex-grow: 1;
     
     min-width: 15vw;
     max-width: 40vw;
 }
 
-/* Resizeable Components */
-
-.dropOne {
-    width: fit-content;
-    height: fit-content;
-    border-radius: 5px;
-    border: 1px solid black;
+.columnThree {
+    min-width: 1vw;
 }
 
-.albumCover, .songDescription {
+/* Resizeable Components */
+
+.resizeHandle {
+    width: 10px;
+    height: 10px;
+    background-color: white;
+    float: right;
+    cursor: nwse-resize;
+}
+
+.dropOne, .dropTwo {
     background-color: black;
     border-radius: 5px;
-    min-height: 25vh;
     height: 45vh;
     min-width: 15vw;
     aspect-ratio: 1 / 1;
+}
+
+.dropOne {
+    background-size: cover;
+    background-position: center;
+
+    min-height: 45vh;
+    max-height: 64vh;
+
+    min-width: 100%;
+    max-width: 45vw;
+
+
+    /* resize: both;
+    overflow: auto; */
 }
 
 .controls, .main {
@@ -68,30 +107,27 @@
     aspect-ratio: 1 /1 ;
 }
 
-
-.albumCover {
-    /* background: url("../../assets/cover.jpeg"); */
-    background-size: cover;
-    resize: both;
-    overflow: auto;
-    max-width: 30vw;
-    max-height: 64vh;
-}
-
-.songDescription {
+.dropTwo {
     display: flex;
-    flex-direction: column;
+
+    min-height: 15vh;
+    /* max-height: 64vh; */
+
+    min-width: 100%;
+    max-width: 45vw;
 
     flex-grow: 1;
-
-    max-width: 30vw;
 
     overflow-y: scroll;
     padding: 10px;
     box-sizing: border-box;
+
+    /* resize: both; */
+    /* overflow: auto; */
 }
 
 .main {
+    min-width: 15vw;
     height: 80vh;
 }
 
@@ -100,9 +136,8 @@
 }
 
 .playlist {
-    height: 100%;
-    width: 25vw;
-    min-width: 15vw;
+    height: 90vh;
+    /* min-width: 1vw; */
     background-color: black;
     border-radius: 5px;
 }

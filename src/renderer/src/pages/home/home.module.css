@@ -21,8 +21,6 @@
 
     box-sizing: border-box;
 
-    /* background-color: red; */
-
     overflow: auto;
 }
 
@@ -31,10 +29,6 @@
     height: 90vh;
 
     gap: 8px;
-
-    /* flex-grow: 1; */
-
-    /* box-sizing: border-box; */
 }
 
 .column, .columnThree {
@@ -45,7 +39,6 @@
     gap: 8px;
 
     flex-grow: 1;
-    /* max-width: 30vw; */
 }
 
 .column {
@@ -78,7 +71,7 @@
 }
 
 .dropOne, .dropTwo {
-    background-color: black;
+    background-color: rgb(0, 0, 0);
     border-radius: 5px;
     height: 45vh;
     min-width: 15vw;
@@ -94,10 +87,6 @@
 
     min-width: 100%;
     max-width: 45vw;
-
-
-    /* resize: both;
-    overflow: auto; */
 }
 
 .controls, .main {
@@ -111,7 +100,6 @@
     display: flex;
 
     min-height: 15vh;
-    /* max-height: 64vh; */
 
     min-width: 100%;
     max-width: 45vw;
@@ -121,14 +109,14 @@
     overflow-y: scroll;
     padding: 10px;
     box-sizing: border-box;
-
-    /* resize: both; */
-    /* overflow: auto; */
 }
+
+/* Main Playlists */
 
 .main {
     min-width: 15vw;
     height: 80vh;
+    padding: 15px;
 }
 
 .controls {
@@ -137,7 +125,6 @@
 
 .playlist {
     height: 90vh;
-    /* min-width: 1vw; */
     background-color: black;
     border-radius: 5px;
 }

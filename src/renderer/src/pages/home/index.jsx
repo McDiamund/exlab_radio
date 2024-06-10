@@ -1,10 +1,11 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import styles from './home.module.css';
 import albumCover from '../../assets/cover.jpeg';
 import { AuthContext } from '../../contexts/auth';
 
 
 const Home = () => {
+  const [pixelColor, setPixelColor] = useState({ one: "#3c899a", two: "#78a3b9", three: "#acbfd3" });
 
   const { getAuthToken, accessCode } = useContext(AuthContext);
 
@@ -54,10 +55,10 @@ const Home = () => {
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
     });
-  });
+  }, []);
 
   return (
-    <div className={styles.homeContainer}>
+    <div className={styles.homeContainer} style={{ backgroundImage: `linear-gradient(to right bottom, ${pixelColor.one}, ${pixelColor.two}, ${pixelColor.three}, #ffffff, #ffffff)`}}>
       <div className={styles.container}>
         <div className={styles.left_content}>
           <div className={styles.column}>
@@ -77,7 +78,9 @@ const Home = () => {
           </div>
           <div className={styles.columnTwo}>
             <div className={styles.main}>
-
+              <div className={styles.title_bar}>
+                <h2 style={{ paddingLeft: "1px" }}>Playlists</h2>
+              </div>
             </div>
             <div style={{ height: "15px" }} />
             <div className={styles.controls}>

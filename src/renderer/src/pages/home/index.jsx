@@ -2,6 +2,9 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import styles from './home.module.css';
 import albumCover from '../../assets/cover.jpeg';
 import { AuthContext } from '../../contexts/auth';
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import AddIcon from '@mui/icons-material/Add';
+
 
 
 const Home = () => {
@@ -80,6 +83,15 @@ const Home = () => {
             <div className={styles.main}>
               <div className={styles.title_bar}>
                 <h2 style={{ paddingLeft: "1px" }}>Playlists</h2>
+                <div style={{ flexGrow: 1 }} />'
+                <FormatListBulletedIcon style={{ color: "white", fontSize: "30px" }}/>
+                <AddIcon style={{ color: "white", fontSize: "30px" }} />
+              </div>
+              <div className={styles.main_playlist_covers}>
+                <div className={styles.cover} />
+                <div className={styles.cover} />
+                <div className={styles.cover} />
+           
               </div>
             </div>
             <div style={{ height: "15px" }} />

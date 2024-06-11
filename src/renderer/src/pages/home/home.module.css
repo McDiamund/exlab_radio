@@ -116,8 +116,28 @@
 .main {
     min-width: 15vw;
     height: 80vh;
-    padding: 15px;
+    padding: 15px 20px;
 }
+
+.title_bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2%;
+}
+
+.main_playlist_covers {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    row-gap: 10px;
+}
+
+.cover {
+    background-color: darkblue;
+    border: 10px solid black;
+    width: 120px;
+    height: 120px;
+}
+
 
 .controls {
     height: 10vh;

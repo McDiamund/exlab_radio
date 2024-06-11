@@ -51,6 +51,8 @@
 
     width: fit-content;
     flex-grow: 1;
+
+    gap: 10px;
     
     min-width: 15vw;
     max-width: 40vw;
@@ -65,7 +67,7 @@
 .resizeHandle {
     width: 10px;
     height: 10px;
-    background-color: white;
+    /* background-color: white; */
     float: right;
     cursor: nwse-resize;
 }
@@ -114,9 +116,19 @@
 /* Main Playlists */
 
 .main {
-    min-width: 15vw;
     height: 80vh;
+
+    max-width: 35vw;
+
+    min-width: 15vw;
+    min-height: 65vh;
+
     padding: 15px 20px;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow-y: scroll;
 }
 
 .title_bar {
@@ -128,19 +140,30 @@
 .main_playlist_covers {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    margin: 10px;
+    
+    column-gap: 10px;
     row-gap: 10px;
+    overflow: auto;
 }
 
 .cover {
-    background-color: darkblue;
-    border: 10px solid black;
+    background-color: rgb(110, 135, 110);
+
     width: 120px;
     height: 120px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
+/* Controls */
 
 .controls {
     height: 10vh;
+    min-height: 10vh;
+    max-height: 25vh;
 }
 
 .playlist {

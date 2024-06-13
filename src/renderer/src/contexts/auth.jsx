@@ -15,7 +15,7 @@ export const AuthProvider = (props) => {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          'grant_type': 'authorization_code',
+          'grant_type': 'client_credentials',
           'client_id': '2f05a3c27f93476e8d6825b9bad854c2',
           'client_secret': '8da80fa617a040eab3645afb98564b72',
         })

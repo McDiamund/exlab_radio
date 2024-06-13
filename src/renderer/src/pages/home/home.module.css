@@ -120,7 +120,7 @@
 
     max-width: 35vw;
 
-    min-width: 15vw;
+    min-width: 250px;
     min-height: 65vh;
 
     padding: 15px 20px;
@@ -140,7 +140,7 @@
 .main_playlist_covers {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    margin: 10px;
+    /* margin: 10px; */
     
     column-gap: 10px;
     row-gap: 10px;

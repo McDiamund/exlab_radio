@@ -5,6 +5,7 @@ import { AuthContext } from '../../contexts/auth';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
+import WebPlayback from '../../components/webplayback';
 
 
 
@@ -42,7 +43,7 @@ const Home = () => {
       
         const newHeight = (window.innerHeight - e.clientY) - (window.innerHeight - rectHeight);
 
-        console.log({bottomHeight: rectHeight, windowHeight: window.innerHeight, diff: (window.innerHeight - rectHeight), newHeight: newHeight});
+        // console.log({bottomHeight: rectHeight, windowHeight: window.innerHeight, diff: (window.innerHeight - rectHeight), newHeight: newHeight});
 
         resizableElement.style.width = `${newWidth}px`;
 
@@ -83,7 +84,7 @@ const Home = () => {
       
         const newHeight = (e.clientY);
 
-        console.log({bottomHeight: rectHeight, windowHeight: window.innerHeight, diff: (window.innerHeight - rectHeight), newHeight: newHeight});
+        // console.log({bottomHeight: rectHeight, windowHeight: window.innerHeight, diff: (window.innerHeight - rectHeight), newHeight: newHeight});
 
         resizableElement.style.width = `${newWidth}px`;
 
@@ -166,7 +167,7 @@ const Home = () => {
               </div>
             </div>
             <div id="controls" className={styles.controls}>
-
+               <WebPlayback token={accessCode} />
             </div>
           </div>
         </div>

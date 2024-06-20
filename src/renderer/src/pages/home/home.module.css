@@ -123,12 +123,12 @@
     min-width: 250px;
     min-height: 65vh;
 
-    padding: 15px 20px;
+    padding: 12px 15px;
 
     display: flex;
     flex-direction: column;
 
-    overflow-y: scroll;
+    /* overflow-y: scroll; */
 }
 
 .title_bar {
@@ -157,6 +157,52 @@
     justify-content: center;
     align-items: center;
 }
+
+.searchBar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    border-bottom: solid white 1px;
+
+    margin-bottom: 10px;
+}
+
+.searchResults {
+    /* margin: 0px 2px; */
+    height: 100%;
+    overflow-y: scroll;
+}
+
+.searchTitle {
+    margin: 7px 5px;
+}
+
+.albumsList {
+    width: 100%;
+    display: flex;
+    gap: 15px;
+    overflow: scroll;
+}
+
+.searchInput {
+    background-color: transparent;
+    border-radius: 2.5px;
+    border: none;
+    padding: 10px;
+    color: white;
+    flex-grow: 1;
+}
+
+.searchInput:focus {
+    border: none;
+    box-shadow: none;
+}
+
+.searchInput::placeholder {
+    color: white;
+}
+
 
 /* Controls */
 

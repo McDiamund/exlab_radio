@@ -1,0 +1,48 @@
+/* Track */
+
+.track {
+    display: flex;
+    cursor: pointer;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    padding: 5px 5px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+.album {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    height: fit-content;
+    padding: 5px;
+    width: 10vw;
+}
+
+.album:hover {
+    background-color: rgba(219, 219, 219, 0.416);
+}
+
+.album .cover {
+    width: 10vw;
+    height: 10vw;
+    aspect-ratio: 1 / 1;
+}
+
+.album .info h3, .album .info p {
+    font-size: 14px;
+    text-overflow: ellipsis;
+}
+
+.track:hover {
+    background-color: rgba(219, 219, 219, 0.416);
+}
+
+.track .cover {
+    width: 3.5vw;
+    height: 3.5vw;
+    aspect-ratio: 1 / 1;
+}

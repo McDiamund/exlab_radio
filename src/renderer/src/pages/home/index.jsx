@@ -3,21 +3,28 @@ import styles from './home.module.css';
 import albumCover from '../../assets/cover.jpeg';
 import { AuthContext } from '../../contexts/auth';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
-import WebPlayback from '../../components/webplayback';
+import { UserAPIContext } from '../../contexts/user_api';
+import { SongAPIContext } from '../../contexts/song_api';
+import Track from '../../components/track';
 
 
 
 const Home = () => {
   const [pixelColor, setPixelColor] = useState({ one: "#3c899a", two: "#78a3b9", three: "#acbfd3" });
+  const [query, setQuery] = useState("");
 
   const { getAuthToken, accessCode } = useContext(AuthContext);
+  const { getUser, user } = useContext(UserAPIContext);
+  const { songResults, setSongResults, albumResults, setAlbumResults, searchQuery } = useContext(SongAPIContext);
 
   useEffect(() => {
 
     getAuthToken();
-
+    
     console.log(accessCode);
 
   }, [accessCode.length == 0]);
@@ -105,11 +112,21 @@ const Home = () => {
   }
 
   useEffect(() => {
-
     dragBottomLeftSection();
     dragCenterSection();
-    
   }, []);
+
+  const handleSearch = async (e) => {
+    if (e.target.value == "") {
+      setQuery("");
+      setSongResults([])
+      setAlbumResults([])
+      return;
+    }
+
+    setQuery(e.target.value);
+    searchQuery(e.target.value, accessCode);
+  }
 
   return (
     <div className={styles.homeContainer} style={{ backgroundImage: `linear-gradient(to right bottom, ${pixelColor.one}, ${pixelColor.two}, ${pixelColor.three}, #ffffff, #ffffff)`}}>
@@ -132,14 +149,47 @@ const Home = () => {
           </div>
           <div className={styles.columnTwo}>
             <div id="main" className={styles.main}>
-              <div className={styles.title_bar}>
+              {/* <div className={styles.title_bar}>
                 <h2 style={{ paddingLeft: "1px" }}>Playlists</h2>
                 <div style={{ flexGrow: 1 }} />'
                 <FormatListBulletedIcon style={{ color: "white", fontSize: "40px" }}/>
                 <AddIcon style={{ color: "white", fontSize: "40px" }} />
+              </div> */}
+              <div className={styles.searchBar}>
+                <SearchIcon style={{ color: "white" }}/>
+                <input 
+                  type='text'
+                  className={styles.searchInput}
+                  value={query}
+                  onChange={handleSearch}
+                  placeholder='Search for a song...'
+                />
+                <div onClick={() =>  {
+                  setQuery('');
+                  setSongResults([]);
+                  setAlbumResults([]);
+                }} style={{ cursor: "pointer"}}>
+                  <CloseIcon style={{ color: "white" }} />
+                </div>
+              </div>
+              <div className={styles.searchResults}>
+
+                  {query.length > 0 && albumResults.length > 0 && 
+                  <h2 className={styles.searchTitle}>Albums</h2>}
+                <div className={styles.albumsList}>
+                  {query.length > 0 && albumResults.map((track) => (
+                    <Track track={track}  />
+                  ))}
+                </div>
+
+                {query.length > 0 && songResults.length > 0 && 
+                <h2 className={styles.searchTitle}>Songs</h2>}
+                {query.length > 0 && songResults.map((track) => (
+                  <Track track={track}  />
+                ))}
               </div>
               <div className={styles.main_playlist_covers}>
-                <div className={styles.cover} />
+                {/* <div className={styles.cover} />
                 <div className={styles.cover} />
                 <div className={styles.cover} />
                 <div className={styles.cover} />
@@ -159,7 +209,7 @@ const Home = () => {
                 <div className={styles.cover} />
                 <div className={styles.cover}>
                   <AddIcon style={{ color: "white", fontSize: "50px" }} />
-                </div>
+                </div> */}
               </div>
               <div style={{ flexGrow: 1 }} />
               <div style={{ display: "flex", justifyContent: "right" }}>
@@ -167,7 +217,7 @@ const Home = () => {
               </div>
             </div>
             <div id="controls" className={styles.controls}>
-               <WebPlayback token={accessCode} />
+               
             </div>
           </div>
         </div>

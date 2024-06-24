@@ -35,6 +35,8 @@
 .album .info h3, .album .info p {
     font-size: 14px;
     text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .track:hover {

@@ -248,6 +248,7 @@
     box-sizing: border-box;
     padding: 15px;
     overflow: auto;
+    min-width: 150px;
 }
 
 .playlist_info {
@@ -267,3 +268,12 @@
     width: 40%;
     aspect-ratio: 1/1;
 }
+
+#container.wide {
+    background-color: red;
+}
+
+.narrow {
+    background-color: red;
+  }
+

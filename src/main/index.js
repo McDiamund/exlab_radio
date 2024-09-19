@@ -3,6 +3,81 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
+
+
+const express = require('express')
+const cors = require('cors');
+
+const yts = require('yt-search')
+const fs = require('fs');
+const ytdl = require('ytdl-core');
+
+// Express app setup
+const expressApp = express()
+const port = 3000
+let server
+
+expressApp.use(express.json())
+expressApp.use(cors());
+
+// Route definitions
+const defineRoutes = (app) => {
+
+  app.post('/search', async (req, res) => {
+    try {
+      const body = req.body;
+      console.log('Received data:', body);
+      
+      // Search Song on Youtube
+      const r = await yts(`${body.name} ${body.artist}`)
+      console.log(r.videos[0].url)
+
+      res.json({
+        url: r.videos[0].url
+      });
+
+    } catch (error) {
+      console.error(error);
+      res.status(500).send('An error occurred');
+    }
+  });
+
+  app.get('/audio', async (req, res) => {
+    const videoURL = req.query.url;
+    if (!ytdl.validateURL(videoURL)) {
+        console.log('Invalid URL');
+        return res.status(400).json({ error: 'Invalid URL' });
+    }
+
+    try {
+        // Get info about the video
+        const info = await ytdl.getInfo(videoURL);
+
+        // Filter out audio-only formats
+        const audioFormat = ytdl.chooseFormat(info.formats, "audioonly");
+        console.log(audioFormat);
+
+        if (!audioFormat) {
+          return res.status(500).send('Could not find a suitable audio format.');
+        }
+
+        res.status(200).send(audioFormat.url);
+
+        // Set headers to indicate streaming of audio
+        // res.setHeader('Content-Type', 'audio/mpeg');
+        // res.setHeader('Content-Disposition', `attachment; filename="${info.videoDetails.title}.mp3"`);
+
+        // // Stream the audio
+        // ytdl(videoURL, { format: audioFormat }).pipe(res);
+    } catch (error) {
+        console.error('Failed to fetch audio URL:', error);
+        res.status(500).json({ error: 'Failed to fetch audio URL' });
+    }
+  });
+}
+
+defineRoutes(expressApp)
+
 function createWindow() {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -54,6 +129,10 @@ app.whenReady().then(() => {
 
   createWindow()
 
+  server = expressApp.listen(port, () => {
+    console.log(`Express server running at http://localhost:${port}`)
+  })
+
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -68,6 +147,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('quit', () => {
+  server.close()
 })
 
 // In this file you can include the rest of your app"s specific main process

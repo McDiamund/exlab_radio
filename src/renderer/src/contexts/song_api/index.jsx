@@ -1,4 +1,5 @@
 import React, { ReactNode, createContext, useContext, useState } from "react";
+import { BASE_URL } from "../../util/utils";
 
 export const SongAPIContext = createContext();
 
@@ -8,57 +9,34 @@ export const SongProvider = (props) => {
     const [albumResults, setAlbumResults] = useState([]);
     const [playlistResult, setPlaylistResult] = useState(null);
 
-    const searchQuery = async (query, access_token) => {
-        try {
-            let response = await fetch(
-              `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-                query
-              )}&type=album%2Ctrack`,
-              {
-                headers: {
-                  Authorization: `Bearer ${access_token}`,
-                },
-              }
-            );
-    
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
-            }
-    
-            let data = await response.json();
-            
-            setSongResults(data.tracks.items);
-            setAlbumResults(data.albums.items);
-          } catch (error) {
-            console.log(error);
-          }
+    const searchQuery = async (query) => {
+      let url = `${BASE_URL}/search?query=${query}`
+      try {
+        let response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(response.json().error)
+        }
+        let data = await response.json();
+        setSongResults(data.tracks);
+        setAlbumResults(data.albums);
+      } catch (error) {
+        console.log(error);
+      }
     }
 
-    const getAlbum = async (id, access_token) => {
+    const getAlbum = async (id) => {
+      let url = `${BASE_URL}/album?id=${id}`
       try {
-          let response = await fetch(
-            `https://api.spotify.com/v1/albums/${encodeURIComponent(
-              id
-            )}`,
-            {
-              headers: {
-                Authorization: `Bearer ${access_token}`,
-              },
-            }
-          );
-  
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-  
-          let data = await response.json();
-          console.log(data);
-          
-          setPlaylistResult(data);
-        } catch (error) {
-          console.log(error);
+        let response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(response.json().error)
         }
-  }
+        let data = await response.json();
+        setPlaylistResult(data);
+      } catch (error) {
+        console.log(error);
+      }
+    }
 
     const ctx = {
         playlists,

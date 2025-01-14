@@ -1,6 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import styles from './home.module.css';
-import { AuthContext } from '../../contexts/auth';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -24,7 +23,6 @@ const Home = () => {
   const [query, setQuery] = useState("");
   const audioRef = useRef(null);
 
-  const { getAuthToken, accessCode } = useContext(AuthContext);
   const { getUser, user } = useContext(UserAPIContext);
   const {
     songResults,
@@ -38,12 +36,9 @@ const Home = () => {
   } = useContext(SongAPIContext);
 
   useEffect(() => {
-    getAuthToken();
-    console.log(accessCode);
-  }, [accessCode.length == 0]);
-
-
-  // Song Searching
+    dragBottomLeftSection();
+    dragCenterSection();
+  }, []);
 
   const handleSearch = async (e) => {
     if (e.target.value == "") {
@@ -54,20 +49,12 @@ const Home = () => {
     }
 
     setQuery(e.target.value);
-    searchQuery(e.target.value, accessCode);
+    searchQuery(e.target.value);
   }
 
   const toggleSearch = () => {
     setSearching(!isSearching);
   }
-
-  // Song Audio Controls
-
-  useEffect(() => {
-
-    console.log(audioURL);
-
-  }, [audioURL])
 
   const parseTrackInfo = (track) => {
     let name = track.name;
@@ -76,23 +63,7 @@ const Home = () => {
     return [name, artist]
   }
 
-  const ytsearch = async (trackInfo) => {
-    let url = `http://localhost:3000/search`
-
-    let requestOptions = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: trackInfo[0],
-        artist: trackInfo[1]
-      })
-    }
-
-    return await fetch(url, requestOptions);
-  }
-
   const playTrack = async (track) => {
-    // console.log(track)
     if (track.album) {
       setAlbumCover(track.album.images[0].url);
     } else {
@@ -100,42 +71,7 @@ const Home = () => {
     }
     setAlbumTitle(track.name);
     setAlbumArtist(track.artists.map((artist) => artist.name).join(', '));
-    let trackInfo = parseTrackInfo(track);
-    let response = await ytsearch(trackInfo);
-    let videoData = await response.json();
-
-    setAudioURL(`http://localhost:3000/audio?url=${encodeURIComponent(videoData.url)}`);
-
-    if (audioRef.current) {
-      audioRef.current.play();
-    }
-
-    setProgress(0);
-    setIsPlaying(true);
   }
-
-  const togglePlayPause = () => {
-    if (audioRef.current.paused) {
-      audioRef.current.play();
-    } else {
-      audioRef.current.pause();
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleProgress = () => {
-    const duration = audioRef.current.duration;
-    const currentTime = audioRef.current.currentTime;
-    const progress = (currentTime / duration) * 100;
-    setProgress(progress);
-  };
-
-  const handleSeek = (e) => {
-    const seekTime = (e.target.value / 100) * audioRef.current.duration;
-    audioRef.current.currentTime = seekTime;
-    setProgress(e.target.value);
-  };
-
   // Home Page Functionality
 
   function dragBottomLeftSection() {
@@ -220,11 +156,6 @@ const Home = () => {
 
   }
 
-  useEffect(() => {
-    dragBottomLeftSection();
-    dragCenterSection();
-  }, []);
-
   return (
     <div className={styles.homeContainer} style={{ backgroundImage: `linear-gradient(to right bottom, ${pixelColor.one}, ${pixelColor.two}, ${pixelColor.three}, #ffffff, #ffffff)` }}>
       <div className={styles.container}>
@@ -292,7 +223,7 @@ const Home = () => {
                       <h2 className={styles.searchTitle}>Albums</h2>}
                     <div className={styles.albumsList}>
                       {query.length > 0 && albumResults.map((track) => (
-                        <Track track={track} access_token={accessCode} />
+                        <Track track={track} />
                       ))}
                     </div>
 

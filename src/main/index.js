@@ -27,7 +27,7 @@ const defineRoutes = (app) => {
     try {
       const body = req.body;
       console.log('Received data:', body);
-      
+
       // Search Song on Youtube
       const r = await yts(`${body.name} ${body.artist}`)
       console.log(r.videos[0].url)
@@ -45,35 +45,48 @@ const defineRoutes = (app) => {
   app.get('/audio', async (req, res) => {
     const videoURL = req.query.url;
     if (!ytdl.validateURL(videoURL)) {
-        console.log('Invalid URL');
-        return res.status(400).json({ error: 'Invalid URL' });
+      console.log('Invalid URL');
+      return res.status(400).json({ error: 'Invalid URL' });
     }
 
     try {
-        // Get info about the video
-        const info = await ytdl.getInfo(videoURL);
+      // Get video info
+      const info = await ytdl.getInfo(videoURL);
 
-        // Filter out audio-only formats
-        const audioFormat = ytdl.chooseFormat(info.formats, "audioonly");
-        console.log(audioFormat);
+      // Choose an audio format
+      const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' });
 
-        if (!audioFormat) {
-          return res.status(500).send('Could not find a suitable audio format.');
-        }
+      if (!audioFormat) {
+        console.log('No audio format found');
+        return res.status(500).send('No suitable audio format found.');
+      }
 
-        res.status(200).send(audioFormat.url);
+      console.log('Selected audio format:', audioFormat.mimeType); // Log format for debugging
 
-        // Set headers to indicate streaming of audio
-        // res.setHeader('Content-Type', 'audio/mpeg');
-        // res.setHeader('Content-Disposition', `attachment; filename="${info.videoDetails.title}.mp3"`);
+      // Set the correct headers
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Content-Disposition', `inline; filename="${info.videoDetails.title}.mp3"`);
 
-        // // Stream the audio
-        // ytdl(videoURL, { format: audioFormat }).pipe(res);
+      // Stream the audio
+      const audioStream = ytdl(videoURL, { format: audioFormat });
+      audioStream.pipe(res);
+
+      // Catch stream errors
+      audioStream.on('error', (err) => {
+        console.error('Error during streaming:', err);
+        res.status(500).send('Error streaming audio.');
+      });
+
     } catch (error) {
-        console.error('Failed to fetch audio URL:', error);
-        res.status(500).json({ error: 'Failed to fetch audio URL' });
+      console.error('Failed to stream audio:', error);
+      res.status(500).json({ error: 'Failed to stream audio' });
     }
   });
+
+  app.listen(3000, () => {
+    console.log('Server running on http://localhost:3000');
+  });
+
 }
 
 defineRoutes(expressApp)

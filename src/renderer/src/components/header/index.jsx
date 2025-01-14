@@ -6,7 +6,7 @@ const Header = () => {
     <div className={styles.header}>
       <div className={styles.container}>
         <div style={{ flexGrow: 1 }} />
-        <p>LOGIN</p>
+        {/* <p>LOGIN</p> */}
       </div>
     </div>
   )

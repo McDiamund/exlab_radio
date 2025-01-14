@@ -17,7 +17,7 @@ const Track = (props) => {
         )
     } else {
         return (
-            <div onClick={() => getAlbum(props.track.id, props.access_token)}  key={props.track.id} className={styles.album}>
+            <div onClick={() => getAlbum(props.track.id)}  key={props.track.id} className={styles.album}>
                 <img src={props.cover || props.track.images[0].url} className={styles.cover} />
                 <div className={styles.info}>
                     <h3>{props.track.name}</h3>

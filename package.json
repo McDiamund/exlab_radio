@@ -1,24 +1,23 @@
 {
   "name": "exlab_radio",
-  "version": "1.0.0",
-  "description": "Music streaming software for Georgia State University EXLAB organization",
-  "homepage": "https://github.com/McDiamund/exlab_radio#readme",
-  "bugs": {
-    "url": "https://github.com/McDiamund/exlab_radio/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/McDiamund/exlab_radio.git"
-  },
-  "license": "ISC",
-  "author": "",
-  "type": "commonjs",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite && electron .",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "devDependencies": {
-    "electron": "^41.0.3"
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.12.0",
+    "electron": "^41.0.3",
+    "svelte": "^5.53.12",
+    "svelte-check": "^4.4.5",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1"
   }
 }

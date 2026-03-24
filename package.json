@@ -13,12 +13,29 @@
   "license": "ISC",
   "author": "",
   "type": "commonjs",
-  "main": "main.js",
+  "main": "dist/main/main.js",
   "scripts": {
-    "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npm run build:main && concurrently \"vite\" \"tsc --project tsconfig.json --watch\" \"nodemon --watch dist/main --ext js --exec cross-env NODE_ENV=development electron .\"",
+    "build:main": "tsc --project tsconfig.json",
+    "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:renderer",
+    "start": "npm run build:main && electron ."
   },
   "devDependencies": {
-    "electron": "^41.0.3"
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.0.3",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.2"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }

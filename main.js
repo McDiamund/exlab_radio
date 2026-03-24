@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron/main'
+const { app, BrowserWindow } = require('electron/main')
 
 const createWindow = () => {
     const win = new BrowserWindow({

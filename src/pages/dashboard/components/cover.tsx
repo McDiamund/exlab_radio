@@ -13,6 +13,7 @@ function CoverImage(props: CoverImageInput): JSX.Element {
             `aspect-square 
             max-w-[45vw] 
             min-h-[45vh] 
+            flex-1
             rounded-md
             `}
             style={props.img ? { background: `url(${props.img})`, backgroundSize: 'cover'} : { backgroundColor: 'green'}}

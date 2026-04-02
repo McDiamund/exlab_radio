@@ -7,17 +7,21 @@ type CoverImageInput = {
 function CoverImage(props: CoverImageInput): JSX.Element {
 
     return (
-        <div 
-            id="cover" 
-            className={
-            `aspect-square 
-            max-w-[45vw] 
-            min-h-[45vh] 
-            flex-1
-            rounded-md
-            `}
-            style={props.img ? { background: `url(${props.img})`, backgroundSize: 'cover'} : { backgroundColor: 'green'}}
-            ></div>     
+        <div
+        id="cover"
+        style={{
+            backgroundImage: props.img ? `url(${props.img})` : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'local',
+            backgroundColor: 'black',
+            aspectRatio: '1 / 1',
+            maxWidth: '45vw',
+            minHeight: '45vh',
+            borderRadius: '6px',
+        }}
+    />
     )
 }
 

@@ -20,6 +20,7 @@ export interface DeezerAlbum {
   cover_medium: string;
   cover_big: string;
   cover_xl: string;
+  artist: DeezerArtist
 }
 
 export interface DeezerTrack {
@@ -59,8 +60,23 @@ export interface DeezerSearchResult {
     nextIndex: number | null;
 }
 
+export interface DeezerAlbumSearchResult {
+    albums: DeezerAlbum[];
+    total: number;
+    nextIndex: number | null;
+}
+
+export interface ArtistDescription {
+    bio?: string,       
+    genre?: string,
+    country?: string,
+    thumbnail?: string,
+}
+
 type SongContextType = {
     searchDeezer: (query: string, options?: DeezerSearchOptions) => Promise<DeezerSearchResult>
+    searchDeezerAlbums: (query: string, options?: DeezerSearchOptions) => Promise<DeezerAlbumSearchResult>
+    lookupArtist: (name: string) => Promise<ArtistDescription>
 }
 
 const SongContext = createContext<SongContextType | null>(null)
@@ -82,8 +98,43 @@ export const SongProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
+    async function searchDeezerAlbums(
+        query: string,
+        options: DeezerSearchOptions = {}
+    ): Promise<DeezerAlbumSearchResult> {
+        const json = await window.api.searchAlbums(query, options)
+
+        if (json.error) throw new Error(`Deezer API error: ${json.error.message}`)
+
+        return {
+            albums: json.data,
+            total: json.total,
+            nextIndex: json.next ? (options.index ?? 0) + (options.limit ?? 25) : null,
+        }
+    }
+
+
+    async function lookupArtist(
+        name: string,
+    ): Promise<ArtistDescription> {
+        const json = await window.api.lookupArtist(name)
+
+        if (json.error) throw new Error(`Artist lookup error: ${json.error.message}`)
+
+        console.log(json)
+
+        return {
+            bio: json.bio,
+            genre: json.genre,
+            country: json.country,
+            thumbnail: json.thumbail,
+        }
+    }
+
     const ctx = {
-        searchDeezer
+        searchDeezer,
+        lookupArtist,
+        searchDeezerAlbums
     }
 
     return (

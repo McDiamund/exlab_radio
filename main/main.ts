@@ -40,3 +40,30 @@ ipcMain.handle('deezer-search', async (_event, query: string, options = {}) => {
   const json = await response.json()
   return json
 })
+
+ipcMain.handle('artist-bio-lookup', async (_event, name: string) => {
+    const response = await fetch(
+        `https://www.theaudiodb.com/api/v1/json/2/search.php?s=${encodeURIComponent(name)}`
+    )
+    const json = await response.json()
+    const artist = json.artists?.[0]
+
+    return {
+        bio: artist?.strBiography,        // English biography
+        genre: artist?.strGenre,
+        country: artist?.strCountry,
+        thumbnail: artist?.strArtistThumb,
+    }
+})
+
+// In main.ts
+ipcMain.handle('deezer-search-albums', async (_event, query: string) => {
+    const params = new URLSearchParams({
+        q: query,
+        limit: '25',
+        index: '0',
+    })
+    const response = await fetch(`https://api.deezer.com/search/album?${params}`)
+    const json = await response.json()
+    return json
+})

@@ -67,3 +67,38 @@ ipcMain.handle('deezer-search-albums', async (_event, query: string) => {
     const json = await response.json()
     return json
 })
+
+/** Fetches album metadata, then the track list from the album's `tracklist` API URL. */
+ipcMain.handle('deezer-album-tracklist', async (_event, albumId: string | number) => {
+    const id = String(albumId).trim()
+    const albumRes = await fetch(
+        `https://api.deezer.com/album/${encodeURIComponent(id)}`,
+        { headers: { Accept: 'application/json' } },
+    )
+    if (!albumRes.ok) {
+        throw new Error(`Deezer album fetch failed: ${albumRes.status}`)
+    }
+    const album = (await albumRes.json()) as { tracklist?: string; error?: unknown }
+    if (album.error) {
+        throw new Error('Deezer album response contained an error')
+    }
+    const tracklistUrl = album.tracklist
+    if (!tracklistUrl || typeof tracklistUrl !== 'string') {
+        throw new Error('Deezer album has no tracklist URL')
+    }
+    const tracksRes = await fetch(tracklistUrl, {
+        headers: { Accept: 'application/json' },
+    })
+    if (!tracksRes.ok) {
+        throw new Error(`Deezer tracklist fetch failed: ${tracksRes.status}`)
+    }
+    return tracksRes.json()
+})
+
+ipcMain.handle('fetch-image-data-url', async (_event, url: string) => {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`)
+    const buffer = Buffer.from(await response.arrayBuffer())
+    const contentType = response.headers.get('content-type') || 'image/jpeg'
+    return `data:${contentType};base64,${buffer.toString('base64')}`
+})

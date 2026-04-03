@@ -3,7 +3,7 @@ import React, { JSX } from 'react'
 function Player(): JSX.Element {
 
     return (
-        <div id="player" className='bg-stone-950 min-h-[10vh] flex flex-col gap-3 justify-center items-center rounded-md px-6'>
+        <div id="player" className='bg-[#353535] min-h-[10vh] flex flex-col gap-3 justify-center items-center px-6'>
             <div className='h-1' />
             <div id="scrubber" className='w-full h-[4px] bg-stone-300'></div>
             <div id="controls" className='h-auto flex items-center gap-3'>

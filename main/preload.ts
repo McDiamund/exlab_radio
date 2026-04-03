@@ -7,4 +7,7 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('artist-bio-lookup', name, options),
     searchAlbums: (query: string, options?: object) =>
         ipcRenderer.invoke('deezer-search-albums', query, options),
+    getDeezerAlbumTracklist: (albumId: string | number) =>
+        ipcRenderer.invoke('deezer-album-tracklist', albumId),
+    fetchImageDataUrl: (url: string) => ipcRenderer.invoke('fetch-image-data-url', url),
 })

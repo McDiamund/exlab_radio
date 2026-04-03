@@ -77,6 +77,7 @@ type SongContextType = {
     searchDeezer: (query: string, options?: DeezerSearchOptions) => Promise<DeezerSearchResult>
     searchDeezerAlbums: (query: string, options?: DeezerSearchOptions) => Promise<DeezerAlbumSearchResult>
     lookupArtist: (name: string) => Promise<ArtistDescription>
+    getTrackList: (id: number) => Promise<Array<DeezerTrack>>
 }
 
 const SongContext = createContext<SongContextType | null>(null)
@@ -113,6 +114,16 @@ export const SongProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
+    async function getTrackList(
+        id: number,
+    ): Promise<Array<DeezerTrack>> {
+        const json = await window.api.getDeezerAlbumTracklist(id)
+
+        if (json.error) throw new Error(`Deezer API error: ${json.error.message}`)
+
+        return json.data
+    }
+
 
     async function lookupArtist(
         name: string,
@@ -134,7 +145,8 @@ export const SongProvider = ({ children }: { children: ReactNode }) => {
     const ctx = {
         searchDeezer,
         lookupArtist,
-        searchDeezerAlbums
+        searchDeezerAlbums,
+        getTrackList,
     }
 
     return (

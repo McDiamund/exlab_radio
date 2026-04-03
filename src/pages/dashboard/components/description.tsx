@@ -11,7 +11,7 @@ export interface DescriptionInput {
 function Description({ description }: { description: DescriptionInput }): JSX.Element {
 
     return (
-        <div id="description" className='aspect-square overflow-scroll flex flex-col gap-1 min-h-[45vh] p-5 bg-black text-white rounded-md'>
+        <div id="description" className='aspect-square overflow-scroll flex flex-col gap-1 min-h-[45vh] p-5 bg-[#353535] text-white'>
             <p className='text-2xl'>{description.track_title}</p>
             <p>{description.artist_name}</p>
             <br />

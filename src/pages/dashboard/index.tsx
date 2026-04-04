@@ -2,7 +2,14 @@ import React, { JSX, useEffect, useRef, useState } from 'react'
 import CoverImage from './components/cover'
 import Description, { DescriptionInput } from './components/description'
 import Player from './components/player'
-import { DeezerAlbum, DeezerAlbumSearchResult, DeezerSearchResult, DeezerTrack, useSongContext } from '../../contexts/SongContext'
+import {
+    ArtistDescription,
+    DeezerAlbum,
+    DeezerAlbumSearchResult,
+    DeezerSearchResult,
+    DeezerTrack,
+    useSongContext,
+} from '../../contexts/SongContext'
 import { buildBackgroundGradientFromDataUrl } from '../../utils/extractCoverGradient'
 import SideNavigation, { TrackList } from './components/sideNavigation';
 
@@ -12,7 +19,7 @@ const DEFAULT_PAGE_BACKGROUND =
 
 function Dashboard(): JSX.Element {
     
-    const { searchDeezer, searchDeezerAlbums, lookupArtist, getTrackList } = useSongContext();
+    const { searchDeezer, searchDeezerAlbums, getTrackList, getAudio } = useSongContext();
     
     const [tracks, setTracks] = useState<Array<DeezerTrack>>([])
     const [albums, setAlbums] = useState<Array<DeezerAlbum>>([])
@@ -20,9 +27,12 @@ function Dashboard(): JSX.Element {
     const [cover, setCover] = useState('')
     const [pageBackground, setPageBackground] = useState(DEFAULT_PAGE_BACKGROUND)
     
+    const [audioSrc, setAudioSrc] = useState<string | undefined>()
+    const [audioDownloading, setAudioDownloading] = useState(false)
     const [tracklist, setTracklist] = useState<TrackList | undefined>()
     const [isSearching, setSearching] = useState<boolean>(false)
     const albumsRef = useRef<HTMLDivElement>(null)
+    const audioRef = useRef<HTMLAudioElement | null>(null)
 
     useEffect(() => {
         if (!isSearching) return
@@ -101,8 +111,23 @@ function Dashboard(): JSX.Element {
         } else {
             setCover(album.cover_xl)
         }
-        const description = await lookupArtist(track.artist.name);
-        setDescription({ track_title: track.title, artist_name: track.artist.name, artist_picture: track.artist.picture_big, artist_description: description.bio })
+
+        setAudioSrc(undefined)
+        setAudioDownloading(true)
+
+        try {
+            setDescription({
+                track_title: track.title,
+                artist_name: track.artist.name,
+                artist_picture: track.artist.picture_big,
+            })
+            const audio = await getAudio(track.title, track.artist.name)
+            setAudioSrc(audio.fileUrl)
+        } catch (e) {
+            alert(e)
+        } finally {
+            setAudioDownloading(false)
+        }
     }
 
     const selectAlbum = async (album: DeezerAlbum) => {
@@ -118,7 +143,7 @@ function Dashboard(): JSX.Element {
         <div
             style={{
                 background: pageBackground,
-                backgroundColor: 'oklch(98.7% 0.022 95.277)',
+                // backgroundColor: 'oklch(98.7% 0.022 95.277)',
                 height: '100vh',
                 display: 'flex',
                 overflow: 'hidden',
@@ -135,6 +160,7 @@ function Dashboard(): JSX.Element {
                     { !isSearching && 
                         (
                         <div id="dashboard-header" className='flex p-3'>
+                            <h1 className='flex-1 text-white'>EXLAB RADIO</h1>
                             <svg id="search-button" onClick={toggleSearch} width={30} height={25}><path fill='white'  d="M10.533 1.27893C5.35215 1.27893 1.12598 5.41887 1.12598 10.5579C1.12598 15.697 5.35215 19.8369 10.533 19.8369C12.767 19.8369 14.8235 19.0671 16.4402 17.7794L20.7929 22.132C21.1834 22.5226 21.8166 22.5226 22.2071 22.132C22.5976 21.7415 22.5976 21.1083 22.2071 20.7178L17.8634 16.3741C19.1616 14.7849 19.94 12.7634 19.94 10.5579C19.94 5.41887 15.7138 1.27893 10.533 1.27893ZM3.12598 10.5579C3.12598 6.55226 6.42768 3.27893 10.533 3.27893C14.6383 3.27893 17.94 6.55226 17.94 10.5579C17.94 14.5636 14.6383 17.8369 10.533 17.8369C6.42768 17.8369 3.12598 14.5636 3.12598 10.5579Z"></path></svg>
                         </div>
                         )
@@ -186,7 +212,11 @@ function Dashboard(): JSX.Element {
                         )
                     }
                 </div>
-                <Player />
+                <Player
+                    src={audioSrc}
+                    audioRef={audioRef}
+                    downloading={audioDownloading}
+                />
             </div>
             <div id="right-info-section" className='w-[30%] flex-col gap-1'>
                 <SideNavigation tracklist={tracklist} selectSong={selectSong}/>

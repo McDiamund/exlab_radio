@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useState } from "react";
+import React, { createContext, ReactNode, useContext } from "react";
 
 
 export interface DeezerArtist {
@@ -29,7 +29,7 @@ export interface DeezerTrack {
   title_short: string;
   duration: number;           // in seconds
   rank: number;               // popularity score
-  preview: string;            // 30-second MP3 preview URL
+    preview: string;            // 30-second MP3 preview URL (unused for playback; search metadata only)
   link: string;               // full Deezer URL to the track
   explicit_lyrics: boolean;
   artist: DeezerArtist;
@@ -73,11 +73,18 @@ export interface ArtistDescription {
     thumbnail?: string,
 }
 
+export interface Song {
+    filePath: string
+    fileUrl: string
+    query: string
+}
+
 type SongContextType = {
     searchDeezer: (query: string, options?: DeezerSearchOptions) => Promise<DeezerSearchResult>
     searchDeezerAlbums: (query: string, options?: DeezerSearchOptions) => Promise<DeezerAlbumSearchResult>
     lookupArtist: (name: string) => Promise<ArtistDescription>
     getTrackList: (id: number) => Promise<Array<DeezerTrack>>
+    getAudio: (title: string, artist: string) => Promise<Song>
 }
 
 const SongContext = createContext<SongContextType | null>(null)
@@ -132,8 +139,6 @@ export const SongProvider = ({ children }: { children: ReactNode }) => {
 
         if (json.error) throw new Error(`Artist lookup error: ${json.error.message}`)
 
-        console.log(json)
-
         return {
             bio: json.bio,
             genre: json.genre,
@@ -142,11 +147,23 @@ export const SongProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
+    async function getAudio(
+        title: string,
+        artist: string
+    ): Promise<Song> {
+        const json = await window.api.downloadYoutubeAudio(title, artist)
+
+        if (json.error) throw new Error(`Song playing error: ${json.error.message}`)
+        
+        return json
+    }
+
     const ctx = {
         searchDeezer,
         lookupArtist,
         searchDeezerAlbums,
         getTrackList,
+        getAudio,
     }
 
     return (

@@ -1,5 +1,94 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
-import path from 'path'
+import { app, BrowserWindow, ipcMain, net, protocol } from 'electron'
+import { randomUUID } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+import youtubedl, { create as createYoutubeDl } from 'youtube-dl-exec'
+
+const APP_AUDIO_SCHEME = 'app-audio'
+
+/** Must run before app ready — allows <audio> / fetch from this origin alongside http://localhost. */
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: APP_AUDIO_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      corsEnabled: true,
+    },
+  },
+])
+
+function audioDownloadsDir(): string {
+  return path.join(app.getPath('userData'), 'audio-downloads')
+}
+
+function toAppAudioUrl(filePath: string): string {
+  const name = path.basename(filePath)
+  return `${APP_AUDIO_SCHEME}://file/${encodeURIComponent(name)}`
+}
+
+function registerAppAudioProtocol(): void {
+  const root = path.resolve(audioDownloadsDir())
+
+  protocol.handle(APP_AUDIO_SCHEME, async (request) => {
+    let base: string
+    try {
+      const u = new URL(request.url)
+      base = decodeURIComponent(path.basename(u.pathname))
+    } catch {
+      return new Response(null, { status: 400 })
+    }
+    if (!base || base === '.' || base === '..') {
+      return new Response(null, { status: 400 })
+    }
+
+    const absolute = path.resolve(path.join(root, base))
+    if (!absolute.startsWith(root + path.sep)) {
+      return new Response(null, { status: 403 })
+    }
+    if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
+      return new Response(null, { status: 404 })
+    }
+
+    const fileHref = pathToFileURL(absolute).href
+    return net.fetch(fileHref)
+  })
+}
+
+function getYoutubeDl() {
+  const override = process.env.EXLAB_YT_DLP?.trim()
+  return override ? createYoutubeDl(override) : youtubedl
+}
+
+function findOutputFile(outDir: string, jobId: string): string | undefined {
+  const entries = fs.readdirSync(outDir)
+  const name = entries.find((f) => f.startsWith(`${jobId}.`))
+  return name ? path.join(outDir, name) : undefined
+}
+
+/** Removes other files in the same folder so only the latest download remains. */
+function deleteOtherAudioFilesInDir(dir: string, keepPath: string): void {
+  const keepName = path.basename(keepPath)
+  let entries: string[]
+  try {
+    entries = fs.readdirSync(dir)
+  } catch {
+    return
+  }
+  for (const name of entries) {
+    if (name === keepName) continue
+    const full = path.join(dir, name)
+    try {
+      const st = fs.statSync(full)
+      if (st.isFile()) fs.unlinkSync(full)
+    } catch {
+      // ignore individual failures (e.g. race with another process)
+    }
+  }
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -17,7 +106,10 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  registerAppAudioProtocol()
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
@@ -102,3 +194,66 @@ ipcMain.handle('fetch-image-data-url', async (_event, url: string) => {
     const contentType = response.headers.get('content-type') || 'image/jpeg'
     return `data:${contentType};base64,${buffer.toString('base64')}`
 })
+
+/**
+ * Searches YouTube for "artist - title" (classroom / educational use only),
+ * downloads the best match as audio via youtube-dl-exec (bundled yt-dlp), and returns a local file URL for playback.
+ * Uses best native audio (no forced m4a transcode) so ffmpeg often isn’t needed; merge edge cases may still invoke it.
+ * Override binary with EXLAB_YT_DLP or youtube-dl-exec env vars (see its readme).
+ */
+ipcMain.handle(
+  'youtube-dl-download-audio',
+  async (_event, title: string, artist: string) => {
+    const t = String(title ?? '').trim()
+    const a = String(artist ?? '').trim()
+    if (!t && !a) {
+      throw new Error('Title and artist cannot both be empty')
+    }
+    const query = a && t ? `${a} - ${t}` : a || t
+
+    const outDir = path.join(app.getPath('userData'), 'audio-downloads')
+    fs.mkdirSync(outDir, { recursive: true })
+
+    const jobId = randomUUID()
+    const outputTemplate = path.join(outDir, `${jobId}.%(ext)s`)
+    const ytdl = getYoutubeDl()
+
+    const spawnOpts = {
+      timeout: 15 * 60 * 1000,
+      windowsHide: true,
+    }
+
+    try {
+      await ytdl(
+        `ytsearch1:${query}`,
+        {
+          noPlaylist: true,
+          /** Faster than extractAudio+m4a: download best audio stream as-is (webm/m4a). */
+          format: 'bestaudio/best',
+          output: outputTemplate,
+          noProgress: true,
+          noWarnings: true,
+          noPart: true,
+        },
+        spawnOpts,
+      )
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new Error(`Download failed: ${msg}`)
+    }
+
+    const filePath = findOutputFile(outDir, jobId)
+    if (!filePath || !fs.existsSync(filePath)) {
+      throw new Error('Download reported success but the audio file was not found')
+    }
+
+    deleteOtherAudioFilesInDir(outDir, filePath)
+
+    return {
+      filePath,
+      /** Use this in the renderer (<audio src>). Raw file:// is blocked from http origins. */
+      fileUrl: toAppAudioUrl(filePath),
+      query,
+    }
+  },
+)

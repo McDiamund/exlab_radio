@@ -10,4 +10,6 @@ contextBridge.exposeInMainWorld('api', {
     getDeezerAlbumTracklist: (albumId: string | number) =>
         ipcRenderer.invoke('deezer-album-tracklist', albumId),
     fetchImageDataUrl: (url: string) => ipcRenderer.invoke('fetch-image-data-url', url),
+    downloadYoutubeAudio: (title: string, artist: string) =>
+        ipcRenderer.invoke('youtube-dl-download-audio', title, artist),
 })

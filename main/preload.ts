@@ -12,4 +12,5 @@ contextBridge.exposeInMainWorld('api', {
     fetchImageDataUrl: (url: string) => ipcRenderer.invoke('fetch-image-data-url', url),
     downloadYoutubeAudio: (title: string, artist: string) =>
         ipcRenderer.invoke('youtube-dl-download-audio', title, artist),
+    getYoutubeDownloadSetup: () => ipcRenderer.invoke('youtube-download-setup'),
 })

@@ -27,6 +27,39 @@ declare global {
                 installCoreCommand: string
                 installOptionalCommand: string
             }>
+            playlistsGet: () => Promise<
+                Array<{
+                    id: string
+                    name: string
+                    description: string
+                    createdAt: string
+                    coverUrl: string | null
+                    tracks: unknown[]
+                }>
+            >
+            playlistsAdd: (payload: {
+                name: string
+                description?: string
+                coverDataUrl?: string | null
+            }) => Promise<{
+                id: string
+                name: string
+                description: string
+                createdAt: string
+                coverUrl: string | null
+                tracks: unknown[]
+            }>
+            playlistsAddTrack: (payload: {
+                playlistId: string
+                track: unknown
+            }) => Promise<{ ok: true; duplicate: boolean }>
+            playlistsRemoveTrack: (payload: {
+                playlistId: string
+                trackId: number
+            }) => Promise<{ ok: true; removed: boolean }>
+            playlistsDelete: (payload: {
+                playlistId: string
+            }) => Promise<{ ok: true }>
         }
     }
 }

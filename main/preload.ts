@@ -13,4 +13,16 @@ contextBridge.exposeInMainWorld('api', {
     downloadYoutubeAudio: (title: string, artist: string) =>
         ipcRenderer.invoke('youtube-dl-download-audio', title, artist),
     getYoutubeDownloadSetup: () => ipcRenderer.invoke('youtube-download-setup'),
+    playlistsGet: () => ipcRenderer.invoke('playlists-get'),
+    playlistsAdd: (payload: {
+        name: string
+        description?: string
+        coverDataUrl?: string | null
+    }) => ipcRenderer.invoke('playlists-add', payload),
+    playlistsAddTrack: (payload: { playlistId: string; track: unknown }) =>
+        ipcRenderer.invoke('playlists-add-track', payload),
+    playlistsRemoveTrack: (payload: { playlistId: string; trackId: number }) =>
+        ipcRenderer.invoke('playlists-remove-track', payload),
+    playlistsDelete: (payload: { playlistId: string }) =>
+        ipcRenderer.invoke('playlists-delete', payload),
 })

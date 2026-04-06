@@ -82,10 +82,21 @@ function buildYtDlpDownloadArgs(
 }
 
 const APP_AUDIO_SCHEME = 'app-audio'
+const APP_PLAYLIST_COVER_SCHEME = 'app-playlist-cover'
 
 protocol.registerSchemesAsPrivileged([
   {
     scheme: APP_AUDIO_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      corsEnabled: true,
+    },
+  },
+  {
+    scheme: APP_PLAYLIST_COVER_SCHEME,
     privileges: {
       standard: true,
       secure: true,
@@ -212,6 +223,135 @@ function registerAppAudioProtocol(): void {
   })
 }
 
+function playlistCoversDir(): string {
+  return path.join(app.getPath('userData'), 'playlist-covers')
+}
+
+function playlistsStorePath(): string {
+  return path.join(app.getPath('userData'), 'playlists.json')
+}
+
+const MAX_LOCAL_PLAYLISTS = 8
+
+/** Deezer-shaped track JSON persisted inside a playlist (renderer sends full search/tracklist objects). */
+type StoredPlaylistTrack = Record<string, unknown> & { id: number }
+
+type StoredPlaylist = {
+  id: string
+  name: string
+  description: string
+  coverFileName: string | null
+  createdAt: string
+  tracks: StoredPlaylistTrack[]
+}
+
+function isStoredTrackRow(row: unknown): row is StoredPlaylistTrack {
+  return (
+    Boolean(row) &&
+    typeof row === 'object' &&
+    typeof (row as StoredPlaylistTrack).id === 'number'
+  )
+}
+
+function readPlaylistsFromDisk(): StoredPlaylist[] {
+  const p = playlistsStorePath()
+  try {
+    if (!fs.existsSync(p)) return []
+    const raw = fs.readFileSync(p, 'utf-8')
+    const data = JSON.parse(raw) as unknown
+    if (!Array.isArray(data)) return []
+    const out: StoredPlaylist[] = []
+    for (const row of data) {
+      if (!row || typeof row !== 'object') continue
+      const r = row as Partial<StoredPlaylist>
+      if (typeof r.id !== 'string' || typeof r.name !== 'string') continue
+      const rawTracks = r.tracks
+      const tracks = Array.isArray(rawTracks)
+        ? rawTracks.filter(isStoredTrackRow)
+        : []
+      out.push({
+        id: r.id,
+        name: r.name,
+        description: typeof r.description === 'string' ? r.description : '',
+        coverFileName: typeof r.coverFileName === 'string' ? r.coverFileName : null,
+        createdAt: typeof r.createdAt === 'string' ? r.createdAt : '',
+        tracks,
+      })
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
+function writePlaylistsToDisk(list: StoredPlaylist[]): void {
+  fs.mkdirSync(path.dirname(playlistsStorePath()), { recursive: true })
+  fs.writeFileSync(playlistsStorePath(), JSON.stringify(list, null, 2), 'utf-8')
+}
+
+function coverUrlForFileName(fileName: string | null): string | null {
+  if (!fileName) return null
+  return `${APP_PLAYLIST_COVER_SCHEME}://file/${encodeURIComponent(fileName)}`
+}
+
+function deletePlaylistCoverFile(coverFileName: string | null): void {
+  if (!coverFileName) return
+  const dir = path.resolve(playlistCoversDir())
+  const base = path.basename(coverFileName)
+  const absolute = path.resolve(path.join(dir, base))
+  if (!absolute.startsWith(dir + path.sep)) return
+  try {
+    if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) {
+      fs.unlinkSync(absolute)
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Serves playlist cover images from userData/playlist-covers (local cache).
+ */
+function registerAppPlaylistCoverProtocol(): void {
+  const root = path.resolve(playlistCoversDir())
+
+  protocol.handle(APP_PLAYLIST_COVER_SCHEME, async (request) => {
+    let base: string
+    try {
+      const u = new URL(request.url)
+      base = decodeURIComponent(path.basename(u.pathname))
+    } catch {
+      return new Response(null, { status: 400 })
+    }
+    if (!base || base === '.' || base === '..') {
+      return new Response(null, { status: 400 })
+    }
+
+    const absolute = path.resolve(path.join(root, base))
+    if (!absolute.startsWith(root + path.sep)) {
+      return new Response(null, { status: 403 })
+    }
+    if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
+      return new Response(null, { status: 404 })
+    }
+
+    const buffer = fs.readFileSync(absolute)
+    const ext = path.extname(absolute).toLowerCase()
+    const mime: Record<string, string> = {
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+    }
+    const contentType = mime[ext] ?? 'application/octet-stream'
+    return new Response(buffer, {
+      status: 200,
+      headers: { 'Content-Type': contentType },
+    })
+  })
+}
+
 // ---------------------------------------------------------------------------
 // yt-dlp binary management — auto-downloads from GitHub on first use
 // ---------------------------------------------------------------------------
@@ -327,6 +467,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerAppAudioProtocol()
+  registerAppPlaylistCoverProtocol()
   createWindow()
 })
 
@@ -413,6 +554,164 @@ ipcMain.handle('fetch-image-data-url', async (_event, url: string) => {
     const contentType = response.headers.get('content-type') || 'image/jpeg'
     return `data:${contentType};base64,${buffer.toString('base64')}`
 })
+
+ipcMain.handle('playlists-get', async () => {
+  const list = readPlaylistsFromDisk()
+  return list.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: typeof p.description === 'string' ? p.description : '',
+    createdAt: typeof p.createdAt === 'string' ? p.createdAt : '',
+    coverUrl: coverUrlForFileName(
+      typeof p.coverFileName === 'string' ? p.coverFileName : null,
+    ),
+    tracks: p.tracks,
+  }))
+})
+
+ipcMain.handle(
+  'playlists-add',
+  async (
+    _event,
+    payload: {
+      name: string
+      description?: string
+      coverDataUrl?: string | null
+    },
+  ) => {
+    const name = String(payload?.name ?? '').trim()
+    if (!name) throw new Error('Playlist name is required')
+    const description = String(payload?.description ?? '').trim()
+
+    const id = randomUUID()
+    let coverFileName: string | null = null
+
+    const dataUrl = payload?.coverDataUrl?.trim()
+    if (dataUrl?.startsWith('data:')) {
+      const m = /^data:([^;]+);base64,(.+)$/s.exec(dataUrl)
+      if (m) {
+        try {
+          const mime = m[1].split(';')[0].trim().toLowerCase()
+          const buf = Buffer.from(m[2], 'base64')
+          if (buf.length === 0) throw new Error('empty image')
+          const ext =
+            mime === 'image/png'
+              ? '.png'
+              : mime === 'image/webp'
+                ? '.webp'
+                : mime === 'image/gif'
+                  ? '.gif'
+                  : '.jpg'
+          const dir = playlistCoversDir()
+          fs.mkdirSync(dir, { recursive: true })
+          coverFileName = `${id}${ext}`
+          fs.writeFileSync(path.join(dir, coverFileName), buf)
+        } catch {
+          coverFileName = null
+        }
+      }
+    }
+
+    const list = readPlaylistsFromDisk()
+    if (list.length >= MAX_LOCAL_PLAYLISTS) {
+      throw new Error(`You can have at most ${MAX_LOCAL_PLAYLISTS} playlists`)
+    }
+
+    const entry: StoredPlaylist = {
+      id,
+      name,
+      description,
+      coverFileName,
+      createdAt: new Date().toISOString(),
+      tracks: [],
+    }
+    list.unshift(entry)
+    writePlaylistsToDisk(list)
+
+    return {
+      id: entry.id,
+      name: entry.name,
+      description: entry.description,
+      createdAt: entry.createdAt,
+      coverUrl: coverUrlForFileName(coverFileName),
+      tracks: [],
+    }
+  },
+)
+
+ipcMain.handle(
+  'playlists-add-track',
+  async (_event, payload: { playlistId: string; track: unknown }) => {
+    const playlistId = String(payload?.playlistId ?? '').trim()
+    if (!playlistId) throw new Error('Playlist id is required')
+
+    const track = payload?.track
+    if (!track || typeof track !== 'object') {
+      throw new Error('Invalid track')
+    }
+    const rec = track as Record<string, unknown>
+    if (typeof rec.id !== 'number') {
+      throw new Error('Track must include a numeric Deezer id')
+    }
+
+    const list = readPlaylistsFromDisk()
+    const idx = list.findIndex((p) => p.id === playlistId)
+    if (idx < 0) throw new Error('Playlist not found')
+
+    const playlist = list[idx]
+    const tid = rec.id as number
+    if (playlist.tracks.some((t) => t.id === tid)) {
+      return { ok: true as const, duplicate: true as const }
+    }
+
+    const nextTracks = [...playlist.tracks, track as StoredPlaylistTrack]
+    list[idx] = { ...playlist, tracks: nextTracks }
+    writePlaylistsToDisk(list)
+    return { ok: true as const, duplicate: false as const }
+  },
+)
+
+ipcMain.handle(
+  'playlists-remove-track',
+  async (_event, payload: { playlistId: string; trackId: number }) => {
+    const playlistId = String(payload?.playlistId ?? '').trim()
+    const trackId = Number(payload?.trackId)
+    if (!playlistId || !Number.isFinite(trackId)) {
+      throw new Error('Playlist id and numeric track id are required')
+    }
+
+    const list = readPlaylistsFromDisk()
+    const idx = list.findIndex((p) => p.id === playlistId)
+    if (idx < 0) throw new Error('Playlist not found')
+
+    const playlist = list[idx]
+    const nextTracks = playlist.tracks.filter((t) => t.id !== trackId)
+    if (nextTracks.length === playlist.tracks.length) {
+      return { ok: true as const, removed: false as const }
+    }
+
+    list[idx] = { ...playlist, tracks: nextTracks }
+    writePlaylistsToDisk(list)
+    return { ok: true as const, removed: true as const }
+  },
+)
+
+ipcMain.handle(
+  'playlists-delete',
+  async (_event, payload: { playlistId: string }) => {
+    const id = String(payload?.playlistId ?? '').trim()
+    if (!id) throw new Error('Playlist id is required')
+
+    const list = readPlaylistsFromDisk()
+    const idx = list.findIndex((p) => p.id === id)
+    if (idx < 0) throw new Error('Playlist not found')
+
+    const [removed] = list.splice(idx, 1)
+    deletePlaylistCoverFile(removed.coverFileName)
+    writePlaylistsToDisk(list)
+    return { ok: true as const }
+  },
+)
 
 ipcMain.handle('youtube-download-setup', async () => {
   const override = process.env.EXLAB_YT_DLP?.trim()

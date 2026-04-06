@@ -1,4 +1,4 @@
-import React, { JSX, useEffect, useRef, useState } from 'react'
+import React, { JSX, useCallback, useEffect, useRef, useState } from 'react'
 import CoverImage from './components/cover'
 import Description, { DescriptionInput } from './components/description'
 import Player from './components/player'
@@ -13,9 +13,15 @@ import {
 import { buildBackgroundGradientFromDataUrl } from '../../utils/extractCoverGradient'
 import SideNavigation, { TrackList } from './components/sideNavigation'
 import AudioDownloadSetup from './components/audioDownloadSetup'
+import CreatePlaylistModal, {
+    type LocalPlaylist,
+} from './components/createPlaylistModal'
+import TrackAddToPlaylistMenu from './components/trackAddToPlaylistMenu'
 
 const DEFAULT_PAGE_BACKGROUND =
     'linear-gradient(145deg, oklch(99% 0.018 95.277) 0%, oklch(96.5% 0.024 95.277) 100%)'
+
+const MAX_PLAYLISTS = 8
 
 
 function Dashboard(): JSX.Element {
@@ -24,6 +30,8 @@ function Dashboard(): JSX.Element {
     
     const [tracks, setTracks] = useState<Array<DeezerTrack>>([])
     const [albums, setAlbums] = useState<Array<DeezerAlbum>>([])
+    const [playlists, setPlaylists] = useState<LocalPlaylist[]>([])
+    const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false)
     const [description, setDescription] = useState<DescriptionInput>({})
     const [cover, setCover] = useState('')
     const [pageBackground, setPageBackground] = useState(DEFAULT_PAGE_BACKGROUND)
@@ -34,6 +42,52 @@ function Dashboard(): JSX.Element {
     const [isSearching, setSearching] = useState<boolean>(false)
     const albumsRef = useRef<HTMLDivElement>(null)
     const audioRef = useRef<HTMLAudioElement | null>(null)
+    const playlistFetchOkRef = useRef(true)
+
+    const refreshPlaylists = useCallback(() => {
+        return window.api
+            .playlistsGet()
+            .then((list) => {
+                if (!playlistFetchOkRef.current) return
+                const normalized: LocalPlaylist[] = list.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    description: p.description,
+                    createdAt: p.createdAt,
+                    coverUrl: p.coverUrl,
+                    tracks: (p.tracks ?? []) as DeezerTrack[],
+                }))
+                setPlaylists(normalized)
+                setTracklist((prev) => {
+                    if (!prev || prev.kind !== 'playlist') return prev
+                    const updated = normalized.find(
+                        (pl) => pl.id === prev.playlist.id,
+                    )
+                    if (!updated) return undefined
+                    return {
+                        kind: 'playlist' as const,
+                        playlist: {
+                            id: updated.id,
+                            name: updated.name,
+                            description: updated.description,
+                            coverUrl: updated.coverUrl,
+                        },
+                        tracks: updated.tracks,
+                    }
+                })
+            })
+            .catch(() => {
+                if (playlistFetchOkRef.current) setPlaylists([])
+            })
+    }, [])
+
+    useEffect(() => {
+        playlistFetchOkRef.current = true
+        void refreshPlaylists()
+        return () => {
+            playlistFetchOkRef.current = false
+        }
+    }, [refreshPlaylists])
 
     useEffect(() => {
         if (!isSearching) return
@@ -133,11 +187,69 @@ function Dashboard(): JSX.Element {
 
     const selectAlbum = async (album: DeezerAlbum) => {
         try {
-            const tracklist = await getTrackList(album.id);
-            setTracklist({album: album, tracks: tracklist})
+            const tracks = await getTrackList(album.id)
+            setTracklist({ kind: 'album', album, tracks })
         } catch (e) {
             alert(e)
         }
+    }
+
+    const selectPlaylist = (playlist: LocalPlaylist) => {
+        setTracklist({
+            kind: 'playlist',
+            playlist: {
+                id: playlist.id,
+                name: playlist.name,
+                description: playlist.description,
+                coverUrl: playlist.coverUrl,
+            },
+            tracks: playlist.tracks ?? [],
+        })
+    }
+
+    const onPlaylistCreated = (playlist: LocalPlaylist) => {
+        setPlaylists((prev) => [
+            { ...playlist, tracks: playlist.tracks ?? [] },
+            ...prev,
+        ])
+    }
+
+    const removeTrackFromPlaylist = async (trackId: number) => {
+        if (tracklist?.kind !== 'playlist') return
+        try {
+            await window.api.playlistsRemoveTrack({
+                playlistId: tracklist.playlist.id,
+                trackId,
+            })
+            await refreshPlaylists()
+        } catch (e) {
+            alert(e instanceof Error ? e.message : String(e))
+        }
+    }
+
+    const deletePlaylistById = async (playlistId: string) => {
+        try {
+            await window.api.playlistsDelete({ playlistId })
+            setTracklist((prev) =>
+                prev?.kind === 'playlist' && prev.playlist.id === playlistId
+                    ? undefined
+                    : prev,
+            )
+            await refreshPlaylists()
+        } catch (e) {
+            alert(e instanceof Error ? e.message : String(e))
+        }
+    }
+
+    const confirmDeletePlaylist = (playlistId: string) => {
+        if (
+            !confirm(
+                'Delete this playlist and all of its saved tracks? This cannot be undone.',
+            )
+        ) {
+            return
+        }
+        void deletePlaylistById(playlistId)
     }
 
     return (
@@ -165,10 +277,97 @@ function Dashboard(): JSX.Element {
                                     <h1 className='flex-1 text-white'>EXLAB RADIO</h1>
                                     <svg id="search-button" onClick={toggleSearch} width={30} height={25}><path fill='white'  d="M10.533 1.27893C5.35215 1.27893 1.12598 5.41887 1.12598 10.5579C1.12598 15.697 5.35215 19.8369 10.533 19.8369C12.767 19.8369 14.8235 19.0671 16.4402 17.7794L20.7929 22.132C21.1834 22.5226 21.8166 22.5226 22.2071 22.132C22.5976 21.7415 22.5976 21.1083 22.2071 20.7178L17.8634 16.3741C19.1616 14.7849 19.94 12.7634 19.94 10.5579C19.94 5.41887 15.7138 1.27893 10.533 1.27893ZM3.12598 10.5579C3.12598 6.55226 6.42768 3.27893 10.533 3.27893C14.6383 3.27893 17.94 6.55226 17.94 10.5579C17.94 14.5636 14.6383 17.8369 10.533 17.8369C6.42768 17.8369 3.12598 14.5636 3.12598 10.5579Z"></path></svg>
                                 </div>
+
                                 <div id="channel menu" className='flex flex-row gap-3 items-center bg-black p-3'>
                                     <h1 className='text-white flex-1'>Create your own radio station</h1>
                                     <button className='bg-[#77933c] text-white px-4 py-2'>Visit Stations</button>
                                 </div>
+
+                                <div id="playlists-header" className='flex px-3 py-2 items-center'>
+                                    <h1 className='text-white flex-1'>Playlists</h1>
+                                    <button
+                                        type="button"
+                                        className='bg-[#77933c] text-white px-4 py-2 disabled:cursor-not-allowed disabled:opacity-45'
+                                        disabled={playlists.length >= MAX_PLAYLISTS}
+                                        title={
+                                            playlists.length >= MAX_PLAYLISTS
+                                                ? `Maximum of ${MAX_PLAYLISTS} playlists`
+                                                : undefined
+                                        }
+                                        onClick={() => setCreatePlaylistOpen(true)}
+                                    >
+                                        Create Playlist
+                                    </button>
+                                </div>
+
+                                <div id="playlists" className='grid grid-cols-2 gap-3 px-3 sm:grid-cols-3 md:grid-cols-4'>
+                                    {playlists.length === 0 ? (
+                                        <p className='col-span-full text-sm text-stone-400'>
+                                            No playlists yet. Create one to save it on this device.
+                                        </p>
+                                    ) : (
+                                        playlists.slice(0, MAX_PLAYLISTS).map((playlist) => (
+                                            <div
+                                                key={playlist.id}
+                                                className='group relative flex flex-col overflow-hidden items-center gap-1 p-2 hover:bg-[#77933c]'
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className='absolute right-1 top-1 z-10 rounded bg-black/70 p-1 text-stone-300 opacity-0 transition-opacity hover:bg-red-900/90 hover:text-white group-hover:opacity-100'
+                                                    title="Delete playlist"
+                                                    aria-label="Delete playlist"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        confirmDeletePlaylist(
+                                                            playlist.id,
+                                                        )
+                                                    }}
+                                                >
+                                                    <svg
+                                                        width="14"
+                                                        height="14"
+                                                        viewBox="0 0 24 24"
+                                                        fill="currentColor"
+                                                        aria-hidden
+                                                    >
+                                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                                    </svg>
+                                                </button>
+                                                <div
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() =>
+                                                        selectPlaylist(playlist)
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                        if (
+                                                            e.key === 'Enter' ||
+                                                            e.key === ' '
+                                                        ) {
+                                                            e.preventDefault()
+                                                            selectPlaylist(playlist)
+                                                        }
+                                                    }}
+                                                    className='flex w-full cursor-pointer flex-col items-center gap-1'
+                                                >
+                                                    <div
+                                                        className='aspect-square w-full bg-stone-900 bg-cover bg-center'
+                                                        style={{
+                                                            backgroundImage:
+                                                                playlist.coverUrl
+                                                                    ? `url(${playlist.coverUrl})`
+                                                                    : undefined,
+                                                        }}
+                                                    />
+                                                    <p className='truncate text-xs text-white'>
+                                                        {playlist.name}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
                                 <AudioDownloadSetup />
                             </>
                         )
@@ -204,13 +403,29 @@ function Dashboard(): JSX.Element {
                                     {tracks.map(
                                         (track, i) => { 
                                             return (
-                                                <div id="track" key={i} className='text-white  cursor-pointer flex gap-4 p-2 hover:bg-[#77933c]' onClick={() => selectSong(track)}>
-                                                    <div id="track-cover" style={{width: '60px', height: '60px', backgroundImage: track.album.cover ? `url(${track.album.cover})` : 'none', backgroundSize: 'cover'}}></div> 
-                                                    <div className='flex flex-col gap-0.5'>
-                                                        <p className='text'>{track.title}</p>
-                                                        <p className='text-xs'>{track.album.title}</p>
-                                                        <p className='text-xs'>{track.artist.name}</p>
+                                                <div
+                                                    id="track"
+                                                    key={track.id ?? i}
+                                                    className='text-white flex gap-2 p-2 hover:bg-[#77933c]'
+                                                >
+                                                    <div
+                                                        className='flex min-w-0 flex-1 cursor-pointer gap-4'
+                                                        onClick={() => selectSong(track)}
+                                                    >
+                                                        <div id="track-cover" style={{width: '60px', height: '60px', flexShrink: 0, backgroundImage: track.album.cover ? `url(${track.album.cover})` : 'none', backgroundSize: 'cover'}}></div>
+                                                        <div className='flex min-w-0 flex-col gap-0.5'>
+                                                            <p className='truncate text-sm'>{track.title}</p>
+                                                            <p className='truncate text-xs'>{track.album.title}</p>
+                                                            <p className='truncate text-xs'>{track.artist.name}</p>
+                                                        </div>
                                                     </div>
+                                                    <TrackAddToPlaylistMenu
+                                                        track={track}
+                                                        playlists={playlists}
+                                                        onPlaylistsChanged={
+                                                            refreshPlaylists
+                                                        }
+                                                    />
                                                 </div>
                                             )
                                         })
@@ -227,8 +442,31 @@ function Dashboard(): JSX.Element {
                 />
             </div>
             <div id="right-info-section" className='w-[30%] flex-col gap-1'>
-                <SideNavigation tracklist={tracklist} selectSong={selectSong}/>
+                <SideNavigation
+                    tracklist={tracklist}
+                    selectSong={selectSong}
+                    playlists={playlists}
+                    onPlaylistsChanged={refreshPlaylists}
+                    onRemoveTrackFromPlaylist={removeTrackFromPlaylist}
+                    onDeleteOpenPlaylist={() => {
+                        if (tracklist?.kind !== 'playlist') return
+                        if (
+                            !confirm(
+                                'Delete this playlist and all of its saved tracks? This cannot be undone.',
+                            )
+                        ) {
+                            return
+                        }
+                        void deletePlaylistById(tracklist.playlist.id)
+                    }}
+                />
             </div>
+
+            <CreatePlaylistModal
+                open={createPlaylistOpen}
+                onClose={() => setCreatePlaylistOpen(false)}
+                onCreated={onPlaylistCreated}
+            />
         </div>
     )
 }

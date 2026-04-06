@@ -25,4 +25,19 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('playlists-remove-track', payload),
     playlistsDelete: (payload: { playlistId: string }) =>
         ipcRenderer.invoke('playlists-delete', payload),
+    networkBroadcastStart: (port: number) =>
+        ipcRenderer.invoke('network-broadcast-start', port),
+    networkBroadcastStop: () => ipcRenderer.invoke('network-broadcast-stop'),
+    networkBroadcastStatus: () => ipcRenderer.invoke('network-broadcast-status'),
+    networkBroadcastSetNowPlaying: (
+        payload: {
+            audioFilePath: string
+            title: string
+            artist: string
+            description?: string
+            coverUrl?: string | null
+        } | null,
+    ) => ipcRenderer.invoke('network-broadcast-set-now-playing', payload),
+    networkBroadcastScan: (port: number) =>
+        ipcRenderer.invoke('network-broadcast-scan', port),
 })

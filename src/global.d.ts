@@ -60,6 +60,43 @@ declare global {
             playlistsDelete: (payload: {
                 playlistId: string
             }) => Promise<{ ok: true }>
+            networkBroadcastStart: (port: number) => Promise<
+                | { ok: true; port: number; lanBaseUrls: string[] }
+                | { ok: false; error: string }
+            >
+            networkBroadcastStop: () => Promise<{ ok: true }>
+            networkBroadcastStatus: () => Promise<{
+                listening: boolean
+                port: number
+                addresses: string[]
+            }>
+            networkBroadcastSetNowPlaying: (
+                payload: {
+                    audioFilePath: string
+                    title: string
+                    artist: string
+                    description?: string
+                    coverUrl?: string | null
+                } | null,
+            ) => Promise<{ ok: true }>
+            networkBroadcastScan: (port: number) => Promise<{
+                ok: true
+                streams: Array<{
+                    address: string
+                    info: {
+                        app: 'exlab-radio'
+                        schemaVersion: 1
+                        title: string
+                        artist: string
+                        description: string
+                        coverUrl: string | null
+                        streamUrl: string
+                        contentType: string | null
+                        contentLength: number | null
+                        hasAudio: boolean
+                    }
+                }>
+            }>
         }
     }
 }

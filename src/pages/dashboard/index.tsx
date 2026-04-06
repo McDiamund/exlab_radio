@@ -13,6 +13,9 @@ import {
 import { buildBackgroundGradientFromDataUrl } from '../../utils/extractCoverGradient'
 import SideNavigation, { TrackList } from './components/sideNavigation'
 import AudioDownloadSetup from './components/audioDownloadSetup'
+import NetworkStreamPanel, {
+    type LanStreamHit,
+} from './components/networkStreamPanel'
 import CreatePlaylistModal, {
     type LocalPlaylist,
 } from './components/createPlaylistModal'
@@ -131,6 +134,22 @@ function Dashboard(): JSX.Element {
         setTracklist(undefined)
     }
 
+    const tuneIntoLanStream = useCallback((hit: LanStreamHit) => {
+        const { info } = hit
+        if (!info.hasAudio) {
+            window.alert('That device is not sharing an audio file yet. Start playback there first.')
+            return
+        }
+        setAudioDownloading(false)
+        setAudioSrc(info.streamUrl)
+        setCover(info.coverUrl ?? '')
+        setDescription({
+            track_title: info.title,
+            artist_name: info.artist,
+            stream_description: info.description,
+        })
+    }, [])
+
     const toggleSearch = () => {
         clear();
         setSearching(!isSearching);
@@ -178,6 +197,18 @@ function Dashboard(): JSX.Element {
             })
             const audio = await getAudio(track.title, track.artist.name)
             setAudioSrc(audio.fileUrl)
+            const coverForBroadcast = album?.cover_xl ?? track.album.cover_xl
+            void window.api
+                .networkBroadcastSetNowPlaying({
+                    audioFilePath: audio.filePath,
+                    title: track.title,
+                    artist: track.artist.name,
+                    description: '',
+                    coverUrl: coverForBroadcast,
+                })
+                .catch(() => {
+                    /* broadcast metadata is best-effort */
+                })
         } catch (e) {
             alert(e)
         } finally {
@@ -369,6 +400,7 @@ function Dashboard(): JSX.Element {
                                 </div>
 
                                 <AudioDownloadSetup />
+                                <NetworkStreamPanel onTuneIn={tuneIntoLanStream} />
                             </>
                         )
                     }

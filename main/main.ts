@@ -1,4 +1,13 @@
 import { app, BrowserWindow, ipcMain, net, protocol } from 'electron'
+import {
+  getLanIPv4Addresses,
+  getLanBroadcastPort,
+  isLanBroadcastListening,
+  scanLanForExlabBroadcasts,
+  setLanBroadcastTrack,
+  startLanBroadcastServer,
+  stopLanBroadcastServer,
+} from './networkBroadcast'
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
@@ -294,6 +303,36 @@ function coverUrlForFileName(fileName: string | null): string | null {
   return `${APP_PLAYLIST_COVER_SCHEME}://file/${encodeURIComponent(fileName)}`
 }
 
+function resolveBroadcastCoverUrls(
+  coverUrl: string | null | undefined,
+): { coverRemoteUrl: string | null; coverLocalAbsolute: string | null } {
+  const c = coverUrl?.trim()
+  if (!c) return { coverRemoteUrl: null, coverLocalAbsolute: null }
+  if (/^https?:\/\//i.test(c)) {
+    return { coverRemoteUrl: c, coverLocalAbsolute: null }
+  }
+  if (c.startsWith(`${APP_PLAYLIST_COVER_SCHEME}://`)) {
+    try {
+      const u = new URL(c)
+      const base = decodeURIComponent(path.basename(u.pathname))
+      if (!base || base === '.' || base === '..') {
+        return { coverRemoteUrl: null, coverLocalAbsolute: null }
+      }
+      const dir = path.resolve(playlistCoversDir())
+      const absolute = path.resolve(path.join(dir, path.basename(base)))
+      if (!absolute.startsWith(dir + path.sep)) {
+        return { coverRemoteUrl: null, coverLocalAbsolute: null }
+      }
+      if (fs.existsSync(absolute) && fs.statSync(absolute).isFile()) {
+        return { coverRemoteUrl: null, coverLocalAbsolute: absolute }
+      }
+    } catch {
+      // ignore invalid cover URL
+    }
+  }
+  return { coverRemoteUrl: null, coverLocalAbsolute: null }
+}
+
 function deletePlaylistCoverFile(coverFileName: string | null): void {
   if (!coverFileName) return
   const dir = path.resolve(playlistCoversDir())
@@ -475,14 +514,18 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
+app.on('before-quit', () => {
+  void stopLanBroadcastServer()
+})
+
 ipcMain.handle('deezer-search', async (_event, query: string, options = {}) => {
   const { limit = 25, index = 0, order = 'RANKING'} = options
 
   const params = new URLSearchParams({
     q: query,
     limit: Math.min(limit, 100).toString(),
-    index: index.toString,
-    order
+    index: index.toString(),
+    order,
   })
 
   const response = await fetch(`https://api.deezer.com/search?${params}`, {
@@ -545,6 +588,79 @@ ipcMain.handle('deezer-album-tracklist', async (_event, albumId: string | number
         throw new Error(`Deezer tracklist fetch failed: ${tracksRes.status}`)
     }
     return tracksRes.json()
+})
+
+ipcMain.handle('network-broadcast-start', async (_event, port: number) => {
+  const p = Number(port)
+  if (!Number.isFinite(p) || p < 1024 || p > 65535) {
+    return { ok: false as const, error: 'Port must be between 1024 and 65535' }
+  }
+  try {
+    const actual = await startLanBroadcastServer(p, audioDownloadsDir())
+    const ips = getLanIPv4Addresses()
+    return {
+      ok: true as const,
+      port: actual,
+      lanBaseUrls: ips.map((ip) => `http://${ip}:${actual}`),
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false as const, error: msg }
+  }
+})
+
+ipcMain.handle('network-broadcast-stop', async () => {
+  await stopLanBroadcastServer()
+  return { ok: true as const }
+})
+
+ipcMain.handle('network-broadcast-status', async () => ({
+  listening: isLanBroadcastListening(),
+  port: getLanBroadcastPort(),
+  addresses: getLanIPv4Addresses(),
+}))
+
+ipcMain.handle('network-broadcast-set-now-playing', async (_event, payload: unknown) => {
+  if (payload === null) {
+    setLanBroadcastTrack(null)
+    return { ok: true as const }
+  }
+  const o = payload as Record<string, unknown>
+  const filePath = String(o?.audioFilePath ?? '').trim()
+  if (!filePath || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    setLanBroadcastTrack(null)
+    return { ok: true as const }
+  }
+  const root = path.resolve(audioDownloadsDir())
+  const resolved = path.resolve(filePath)
+  if (!resolved.startsWith(root + path.sep)) {
+    throw new Error('Audio file is outside the downloads folder')
+  }
+  const title = String(o?.title ?? '').trim()
+  const artist = String(o?.artist ?? '').trim()
+  const description = String(o?.description ?? '').trim()
+  const rawCover = o?.coverUrl
+  const coverUrl =
+    typeof rawCover === 'string' ? rawCover : rawCover === null ? null : undefined
+  const { coverRemoteUrl, coverLocalAbsolute } = resolveBroadcastCoverUrls(coverUrl)
+  setLanBroadcastTrack({
+    filePath: resolved,
+    title,
+    artist,
+    description,
+    coverRemoteUrl,
+    coverLocalAbsolute,
+  })
+  return { ok: true as const }
+})
+
+ipcMain.handle('network-broadcast-scan', async (_event, port: number) => {
+  const p = Number(port)
+  if (!Number.isFinite(p) || p < 1 || p > 65535) {
+    throw new Error('Invalid port')
+  }
+  const streams = await scanLanForExlabBroadcasts(p)
+  return { ok: true as const, streams }
 })
 
 ipcMain.handle('fetch-image-data-url', async (_event, url: string) => {

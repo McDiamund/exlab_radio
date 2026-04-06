@@ -5,6 +5,10 @@ export interface PlayerInput {
     audioRef: React.RefObject<HTMLAudioElement | null>
     /** True while the main process is fetching the track (no preview — full file only). */
     downloading?: boolean
+    /** If true, do not reset to 0s or autoplay on src change (LAN listener: parent syncs time). */
+    skipAutostart?: boolean
+    /** If true, play/pause and seek are driven by the host; local controls are disabled. */
+    remoteControlled?: boolean
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -12,7 +16,7 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function Player(props: PlayerInput): JSX.Element {
-    const { src, audioRef, downloading } = props
+    const { src, audioRef, downloading, skipAutostart, remoteControlled } = props
     const scrubberRef = useRef<HTMLDivElement>(null)
     const scrubbingRef = useRef(false)
     const [duration, setDuration] = useState(0)
@@ -38,7 +42,7 @@ function Player(props: PlayerInput): JSX.Element {
     }, [audioRef])
 
     useEffect(() => {
-        if (!src) return
+        if (!src || skipAutostart) return
         const el = audioRef.current
         if (!el) return
 
@@ -66,7 +70,7 @@ function Player(props: PlayerInput): JSX.Element {
             cancelAnimationFrame(raf)
             el.removeEventListener('loadedmetadata', startFromBeginning)
         }
-    }, [src, audioRef])
+    }, [src, audioRef, skipAutostart])
 
     useEffect(() => {
         const el = audioRef.current
@@ -102,7 +106,7 @@ function Player(props: PlayerInput): JSX.Element {
     }, [src, audioRef])
 
     const onScrubberPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (!src || !audioRef.current) return
+        if (remoteControlled || !src || !audioRef.current) return
         e.currentTarget.setPointerCapture(e.pointerId)
         scrubbingRef.current = true
         seekFromClientX(e.clientX)
@@ -121,6 +125,7 @@ function Player(props: PlayerInput): JSX.Element {
     }
 
     const togglePlay = () => {
+        if (remoteControlled) return
         const el = audioRef.current
         if (!el) return
         if (el.paused) void el.play().catch(() => {})
@@ -144,7 +149,13 @@ function Player(props: PlayerInput): JSX.Element {
                 aria-valuemax={Math.round(duration) || 0}
                 aria-valuenow={Math.round(currentTime)}
                 aria-label="Seek"
-                className={`relative w-full h-2 rounded-full bg-stone-600 touch-none ${src ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
+                className={`relative w-full h-2 rounded-full bg-stone-600 touch-none ${
+                    remoteControlled
+                        ? 'cursor-default opacity-50 pointer-events-none'
+                        : src
+                          ? 'cursor-pointer'
+                          : 'cursor-default opacity-60'
+                }`}
                 onPointerDown={onScrubberPointerDown}
                 onPointerMove={onScrubberPointerMove}
                 onPointerUp={onScrubberPointerUp}
@@ -166,8 +177,9 @@ function Player(props: PlayerInput): JSX.Element {
                 <button
                     type="button"
                     onClick={togglePlay}
-                    disabled={!src}
+                    disabled={!src || remoteControlled}
                     aria-label={playing ? 'Pause' : 'Play'}
+                    title={remoteControlled ? 'Controlled by the broadcaster' : undefined}
                     className="p-0 border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
@@ -191,7 +203,7 @@ function Player(props: PlayerInput): JSX.Element {
                 {src ? (
                     <audio
                         ref={audioRef}
-                        autoPlay
+                        autoPlay={!skipAutostart}
                         hidden
                         src={src}
                     />

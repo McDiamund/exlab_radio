@@ -15,6 +15,7 @@
   "type": "commonjs",
   "main": "dist/main/main.js",
   "scripts": {
+    "install-deps": "npm ci",
     "dev": "npm run build:main && concurrently \"vite\" \"tsc --project tsconfig.json --watch\" \"nodemon --watch dist/main --ext js --exec cross-env NODE_ENV=development electron .\"",
     "build:main": "tsc --project tsconfig.json",
     "build:renderer": "vite build",

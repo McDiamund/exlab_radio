@@ -10,7 +10,7 @@ export const EXLAB_BROADCAST_COVER_PATH = `${EXLAB_BROADCAST_PREFIX}/cover`
 
 export type LanBroadcastInfo = {
   app: 'exlab-radio'
-  schemaVersion: 1
+  schemaVersion: 2
   title: string
   artist: string
   description: string
@@ -19,6 +19,12 @@ export type LanBroadcastInfo = {
   contentType: string | null
   contentLength: number | null
   hasAudio: boolean
+  /** Bumps when the shared audio file changes; clients reload the stream URL with this in a query param. */
+  playbackRevision: number
+  /** Host playback position in seconds (last reported). */
+  positionSec: number
+  /** Whether the host player is currently playing (not paused). */
+  playing: boolean
 }
 
 export type LanBroadcastTrackState = {
@@ -34,6 +40,9 @@ let server: http.Server | null = null
 let boundPort = 0
 let audioRootResolved = ''
 let trackState: LanBroadcastTrackState | null = null
+let playbackRevision = 0
+let playbackPositionSec = 0
+let playbackPlaying = false
 
 function mimeFromAudioPath(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase()
@@ -203,7 +212,7 @@ function handleInfo(req: http.IncomingMessage, res: http.ServerResponse): void {
 
   const body: LanBroadcastInfo = {
     app: 'exlab-radio',
-    schemaVersion: 1,
+    schemaVersion: 2,
     title: trackState?.title ?? '',
     artist: trackState?.artist ?? '',
     description: trackState?.description ?? '',
@@ -212,6 +221,9 @@ function handleInfo(req: http.IncomingMessage, res: http.ServerResponse): void {
     contentType: absolute ? mimeFromAudioPath(absolute) : null,
     contentLength: absolute ? fs.statSync(absolute).size : null,
     hasAudio,
+    playbackRevision,
+    positionSec: playbackPositionSec,
+    playing: playbackPlaying,
   }
 
   sendCors(res)
@@ -236,7 +248,25 @@ function handleCover(_req: http.IncomingMessage, res: http.ServerResponse): void
 }
 
 export function setLanBroadcastTrack(state: LanBroadcastTrackState | null): void {
+  if (!state) {
+    trackState = null
+    playbackRevision = 0
+    playbackPositionSec = 0
+    playbackPlaying = false
+    return
+  }
+  if (trackState?.filePath !== state.filePath) {
+    playbackRevision++
+    playbackPositionSec = 0
+    playbackPlaying = false
+  }
   trackState = state
+}
+
+export function setLanBroadcastPlaybackSnapshot(positionSec: number, playing: boolean): void {
+  if (!server || boundPort <= 0 || !trackState) return
+  playbackPositionSec = Number.isFinite(positionSec) ? Math.max(0, positionSec) : 0
+  playbackPlaying = Boolean(playing)
 }
 
 export function getLanBroadcastPort(): number {
@@ -338,6 +368,34 @@ function subnetPrefixForIp(ip: string): string | null {
   return `${parts[0]}.${parts[1]}.${parts[2]}`
 }
 
+function normalizeRemoteBroadcastInfo(raw: Record<string, unknown>): LanBroadcastInfo | null {
+  if (raw.app !== 'exlab-radio') return null
+  const sv = raw.schemaVersion
+  if (sv !== 1 && sv !== 2) return null
+  const coverUrl = raw.coverUrl
+  const contentType = raw.contentType
+  const contentLength = raw.contentLength
+  return {
+    app: 'exlab-radio',
+    schemaVersion: 2,
+    title: String(raw.title ?? ''),
+    artist: String(raw.artist ?? ''),
+    description: String(raw.description ?? ''),
+    coverUrl: typeof coverUrl === 'string' || coverUrl === null ? (coverUrl as string | null) : null,
+    streamUrl: String(raw.streamUrl ?? ''),
+    contentType: typeof contentType === 'string' || contentType === null ? (contentType as string | null) : null,
+    contentLength: typeof contentLength === 'number' ? contentLength : null,
+    hasAudio: Boolean(raw.hasAudio),
+    playbackRevision:
+      typeof raw.playbackRevision === 'number' && Number.isFinite(raw.playbackRevision)
+        ? raw.playbackRevision
+        : 0,
+    positionSec:
+      typeof raw.positionSec === 'number' && Number.isFinite(raw.positionSec) ? raw.positionSec : 0,
+    playing: typeof raw.playing === 'boolean' ? raw.playing : false,
+  }
+}
+
 export async function scanLanForExlabBroadcasts(
   port: number,
 ): Promise<Array<{ address: string; info: LanBroadcastInfo }>> {
@@ -371,9 +429,10 @@ export async function scanLanForExlabBroadcasts(
           const r = await fetch(url, { signal: c.signal })
           clearTimeout(t)
           if (!r.ok) return null
-          const json = (await r.json()) as Partial<LanBroadcastInfo>
-          if (json.app !== 'exlab-radio' || json.schemaVersion !== 1) return null
-          return { address, info: json as LanBroadcastInfo }
+          const json = (await r.json()) as Record<string, unknown>
+          const info = normalizeRemoteBroadcastInfo(json)
+          if (!info) return null
+          return { address, info }
         } catch {
           clearTimeout(t)
           return null

@@ -26,6 +26,16 @@ const DEFAULT_PAGE_BACKGROUND =
 
 const MAX_PLAYLISTS = 8
 
+type LanFollowConfig = {
+    infoUrl: string
+    streamUrlWithoutQuery: string
+}
+
+type HostSyncSnapshot = {
+    revision: number
+    positionSec: number
+    playing: boolean
+}
 
 function Dashboard(): JSX.Element {
     
@@ -46,6 +56,10 @@ function Dashboard(): JSX.Element {
     const albumsRef = useRef<HTMLDivElement>(null)
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const playlistFetchOkRef = useRef(true)
+    const hostSyncRef = useRef<HostSyncSnapshot | null>(null)
+
+    const [lanFollow, setLanFollow] = useState<LanFollowConfig | null>(null)
+    const [hostSync, setHostSync] = useState<HostSyncSnapshot | null>(null)
 
     const refreshPlaylists = useCallback(() => {
         return window.api
@@ -128,20 +142,150 @@ function Dashboard(): JSX.Element {
         }
     }, [cover])
 
+    hostSyncRef.current = hostSync
+
+    useEffect(() => {
+        if (!lanFollow) return
+        const el = audioRef.current
+        if (!el) return
+        const alignToHost = () => {
+            const hs = hostSyncRef.current
+            if (!hs) return
+            const d = el.duration
+            if (!Number.isFinite(d) || d <= 0) return
+            const t = Math.min(hs.positionSec, Math.max(0, d - 0.05))
+            el.currentTime = t
+            if (hs.playing) void el.play().catch(() => {})
+            else el.pause()
+        }
+        el.addEventListener('loadedmetadata', alignToHost)
+        alignToHost()
+        return () => el.removeEventListener('loadedmetadata', alignToHost)
+    }, [lanFollow, audioSrc])
+
+    useEffect(() => {
+        if (!lanFollow || !hostSync) return
+        const el = audioRef.current
+        if (!el) return
+        if (el.readyState < HTMLMediaElement.HAVE_METADATA) return
+        const d = el.duration
+        if (!Number.isFinite(d) || d <= 0) return
+        const t = Math.min(hostSync.positionSec, Math.max(0, d - 0.05))
+        if (Math.abs(el.currentTime - t) > 0.45) el.currentTime = t
+        if (hostSync.playing) {
+            if (el.paused) void el.play().catch(() => {})
+        } else if (!el.paused) el.pause()
+    }, [lanFollow, hostSync])
+
+    useEffect(() => {
+        if (!lanFollow) return
+        const id = window.setInterval(() => {
+            void (async () => {
+                try {
+                    const r = await fetch(lanFollow.infoUrl, { cache: 'no-store' })
+                    const data = (await r.json()) as Record<string, unknown>
+                    if (data.app !== 'exlab-radio') return
+                    const rev =
+                        typeof data.playbackRevision === 'number' ? data.playbackRevision : 0
+                    const positionSec =
+                        typeof data.positionSec === 'number' ? data.positionSec : 0
+                    const playing = typeof data.playing === 'boolean' ? data.playing : false
+                    const title = String(data.title ?? '')
+                    const artist = String(data.artist ?? '')
+                    const desc = String(data.description ?? '')
+                    const rawCover = data.coverUrl
+                    setHostSync({ revision: rev, positionSec, playing })
+                    setAudioSrc((prev) => {
+                        const next = `${lanFollow.streamUrlWithoutQuery}?r=${rev}`
+                        return prev === next ? prev : next
+                    })
+                    setDescription({
+                        track_title: title,
+                        artist_name: artist,
+                        stream_description: desc,
+                    })
+                    if (typeof rawCover === 'string') setCover(rawCover)
+                    else if (rawCover === null) setCover('')
+                } catch {
+                    /* ignore transient network errors */
+                }
+            })()
+        }, 400)
+        return () => clearInterval(id)
+    }, [lanFollow])
+
+    useEffect(() => {
+        if (lanFollow) return
+        const el = audioRef.current
+        if (!el) return
+        let lastPush = 0
+        const push = () => {
+            const now = Date.now()
+            if (now - lastPush < 200) return
+            lastPush = now
+            void window.api
+                .networkBroadcastSetPlaybackState({
+                    positionSec: el.currentTime,
+                    playing: !el.paused,
+                })
+                .catch(() => {})
+        }
+        el.addEventListener('timeupdate', push)
+        el.addEventListener('play', push)
+        el.addEventListener('pause', push)
+        el.addEventListener('seeked', push)
+        el.addEventListener('ended', push)
+        push()
+        return () => {
+            el.removeEventListener('timeupdate', push)
+            el.removeEventListener('play', push)
+            el.removeEventListener('pause', push)
+            el.removeEventListener('seeked', push)
+            el.removeEventListener('ended', push)
+        }
+    }, [lanFollow, audioSrc])
+
     const clear = () => {
         setTracks([])
         setAlbums([])
         setTracklist(undefined)
     }
 
-    const tuneIntoLanStream = useCallback((hit: LanStreamHit) => {
+    const tuneIntoLanStream = useCallback(async (hit: LanStreamHit) => {
         const { info } = hit
         if (!info.hasAudio) {
             window.alert('That device is not sharing an audio file yet. Start playback there first.')
             return
         }
+        let origin: string
+        try {
+            origin = new URL(info.streamUrl).origin
+        } catch {
+            window.alert('Invalid stream URL from broadcaster.')
+            return
+        }
+        const infoUrl = `${origin}/exlab-radio/info`
+        const streamUrlWithoutQuery = info.streamUrl.split('?')[0]
+
+        let rev = info.playbackRevision ?? 0
+        let positionSec = info.positionSec ?? 0
+        let playing = info.playing ?? false
+        try {
+            const r = await fetch(infoUrl, { cache: 'no-store' })
+            const data = (await r.json()) as Record<string, unknown>
+            if (data.app === 'exlab-radio') {
+                if (typeof data.playbackRevision === 'number') rev = data.playbackRevision
+                if (typeof data.positionSec === 'number') positionSec = data.positionSec
+                if (typeof data.playing === 'boolean') playing = data.playing
+            }
+        } catch {
+            /* use scan snapshot */
+        }
+
+        setLanFollow({ infoUrl, streamUrlWithoutQuery })
+        setHostSync({ revision: rev, positionSec, playing })
         setAudioDownloading(false)
-        setAudioSrc(info.streamUrl)
+        setAudioSrc(`${streamUrlWithoutQuery}?r=${rev}`)
         setCover(info.coverUrl ?? '')
         setDescription({
             track_title: info.title,
@@ -180,6 +324,9 @@ function Dashboard(): JSX.Element {
     }
 
     const selectSong = async (track: DeezerTrack, album?: DeezerAlbum) => {
+        setLanFollow(null)
+        setHostSync(null)
+
         if (!album) {
             setCover(track.album.cover_xl);
         } else {
@@ -471,6 +618,8 @@ function Dashboard(): JSX.Element {
                     src={audioSrc}
                     audioRef={audioRef}
                     downloading={audioDownloading}
+                    skipAutostart={Boolean(lanFollow)}
+                    remoteControlled={Boolean(lanFollow)}
                 />
             </div>
             <div id="right-info-section" className='w-[30%] flex-col gap-1'>

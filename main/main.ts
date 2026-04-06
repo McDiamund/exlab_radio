@@ -4,6 +4,7 @@ import {
   getLanBroadcastPort,
   isLanBroadcastListening,
   scanLanForExlabBroadcasts,
+  setLanBroadcastPlaybackSnapshot,
   setLanBroadcastTrack,
   startLanBroadcastServer,
   stopLanBroadcastServer,
@@ -651,6 +652,16 @@ ipcMain.handle('network-broadcast-set-now-playing', async (_event, payload: unkn
     coverRemoteUrl,
     coverLocalAbsolute,
   })
+  return { ok: true as const }
+})
+
+ipcMain.handle('network-broadcast-set-playback-state', async (_event, payload: unknown) => {
+  const o = payload as Record<string, unknown>
+  const rawPos = o?.positionSec
+  const positionSec = typeof rawPos === 'number' ? rawPos : Number(rawPos)
+  if (!Number.isFinite(positionSec)) return { ok: true as const }
+  const playing = Boolean(o?.playing)
+  setLanBroadcastPlaybackSnapshot(positionSec, playing)
   return { ok: true as const }
 })
 

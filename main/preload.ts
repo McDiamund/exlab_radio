@@ -38,6 +38,10 @@ contextBridge.exposeInMainWorld('api', {
             coverUrl?: string | null
         } | null,
     ) => ipcRenderer.invoke('network-broadcast-set-now-playing', payload),
+    networkBroadcastSetPlaybackState: (payload: {
+        positionSec: number
+        playing: boolean
+    }) => ipcRenderer.invoke('network-broadcast-set-playback-state', payload),
     networkBroadcastScan: (port: number) =>
         ipcRenderer.invoke('network-broadcast-scan', port),
 })

@@ -79,13 +79,17 @@ declare global {
                     coverUrl?: string | null
                 } | null,
             ) => Promise<{ ok: true }>
+            networkBroadcastSetPlaybackState: (payload: {
+                positionSec: number
+                playing: boolean
+            }) => Promise<{ ok: true }>
             networkBroadcastScan: (port: number) => Promise<{
                 ok: true
                 streams: Array<{
                     address: string
                     info: {
                         app: 'exlab-radio'
-                        schemaVersion: 1
+                        schemaVersion: 2
                         title: string
                         artist: string
                         description: string
@@ -94,6 +98,9 @@ declare global {
                         contentType: string | null
                         contentLength: number | null
                         hasAudio: boolean
+                        playbackRevision: number
+                        positionSec: number
+                        playing: boolean
                     }
                 }>
             }>

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 
 export type LanStreamInfo = {
     app: 'exlab-radio'
-    schemaVersion: 1
+    schemaVersion: 2
     title: string
     artist: string
     description: string
@@ -11,12 +11,15 @@ export type LanStreamInfo = {
     contentType: string | null
     contentLength: number | null
     hasAudio: boolean
+    playbackRevision: number
+    positionSec: number
+    playing: boolean
 }
 
 export type LanStreamHit = { address: string; info: LanStreamInfo }
 
 type Props = {
-    onTuneIn: (hit: LanStreamHit) => void
+    onTuneIn: (hit: LanStreamHit) => void | Promise<void>
 }
 
 const DEFAULT_PORT = 47890
@@ -218,7 +221,7 @@ export default function NetworkStreamPanel(props: Props) {
                                         <button
                                             type="button"
                                             disabled={!hit.info.hasAudio}
-                                            onClick={() => onTuneIn(hit)}
+                                            onClick={() => void onTuneIn(hit)}
                                             className="self-start text-[11px] px-2 py-1 rounded bg-[#77933c] text-white disabled:opacity-40"
                                         >
                                             Play in EXLAB Radio

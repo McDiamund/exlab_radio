@@ -133,7 +133,7 @@ export default function NetworkStreamPanel(props: Props) {
                             value={port}
                             disabled={listening || busy}
                             onChange={(e) => setPort(Number(e.target.value))}
-                            className="max-w-[8rem] rounded bg-black/40 px-2 py-1 text-stone-200 border border-stone-600"
+                            className="max-w-[8rem] bg-black/40 px-2 py-1 text-stone-200 border border-stone-600"
                         />
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -141,7 +141,7 @@ export default function NetworkStreamPanel(props: Props) {
                             type="button"
                             disabled={busy}
                             onClick={() => void toggleBroadcast()}
-                            className="bg-[#77933c] text-white px-3 py-1.5 rounded disabled:opacity-45"
+                            className="bg-[#77933c] text-white px-3 py-1.5 disabled:opacity-45"
                         >
                             {listening ? 'Stop broadcasting' : 'Start broadcasting'}
                         </button>
@@ -149,7 +149,7 @@ export default function NetworkStreamPanel(props: Props) {
                             type="button"
                             disabled={scanBusy}
                             onClick={() => void scan()}
-                            className="bg-stone-700 text-white px-3 py-1.5 rounded hover:bg-stone-600 disabled:opacity-45"
+                            className="bg-stone-700 text-white px-3 py-1.5 hover:bg-stone-600 disabled:opacity-45"
                         >
                             {scanBusy ? 'Scanning LAN…' : 'Scan for streams'}
                         </button>

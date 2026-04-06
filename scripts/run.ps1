@@ -14,3 +14,4 @@ if (Test-Path package-lock.json) {
     npm install
 }
 Write-Host 'install-dependencies: done. Next: npm run dev'
+npm run dev

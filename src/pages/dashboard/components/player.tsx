@@ -9,6 +9,9 @@ export interface PlayerInput {
     skipAutostart?: boolean
     /** If true, play/pause and seek are driven by the host; local controls are disabled. */
     remoteControlled?: boolean
+    /** When remote-controlled, scrubber / play icon follow the host (avoids element time glitches at pause/end). */
+    remoteScrubberTimeSec?: number | null
+    remoteScrubberPlaying?: boolean | null
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -16,7 +19,15 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function Player(props: PlayerInput): JSX.Element {
-    const { src, audioRef, downloading, skipAutostart, remoteControlled } = props
+    const {
+        src,
+        audioRef,
+        downloading,
+        skipAutostart,
+        remoteControlled,
+        remoteScrubberTimeSec,
+        remoteScrubberPlaying,
+    } = props
     const scrubberRef = useRef<HTMLDivElement>(null)
     const scrubbingRef = useRef(false)
     const [duration, setDuration] = useState(0)
@@ -24,10 +35,11 @@ function Player(props: PlayerInput): JSX.Element {
     const [playing, setPlaying] = useState(false)
 
     useEffect(() => {
+        scrubbingRef.current = false
+        if (skipAutostart) return
         setDuration(0)
         setCurrentTime(0)
-        scrubbingRef.current = false
-    }, [src])
+    }, [src, skipAutostart])
 
     const seekFromClientX = useCallback((clientX: number) => {
         const bar = scrubberRef.current
@@ -77,7 +89,15 @@ function Player(props: PlayerInput): JSX.Element {
         if (!el) return
 
         const onTimeUpdate = () => {
-            if (!scrubbingRef.current) setCurrentTime(el.currentTime)
+            if (scrubbingRef.current) return
+            if (
+                remoteControlled &&
+                remoteScrubberTimeSec != null &&
+                Number.isFinite(remoteScrubberTimeSec)
+            ) {
+                return
+            }
+            setCurrentTime(el.currentTime)
         }
         const onDurationChange = () => {
             if (Number.isFinite(el.duration)) setDuration(el.duration)
@@ -103,7 +123,17 @@ function Player(props: PlayerInput): JSX.Element {
             el.removeEventListener('pause', onPause)
             el.removeEventListener('ended', onEnded)
         }
-    }, [src, audioRef])
+    }, [src, audioRef, remoteControlled, remoteScrubberTimeSec])
+
+    const displayTimeSec =
+        remoteControlled &&
+        remoteScrubberTimeSec != null &&
+        Number.isFinite(remoteScrubberTimeSec)
+            ? remoteScrubberTimeSec
+            : currentTime
+
+    const playingUi =
+        remoteControlled && remoteScrubberPlaying != null ? remoteScrubberPlaying : playing
 
     const onScrubberPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         if (remoteControlled || !src || !audioRef.current) return
@@ -133,7 +163,9 @@ function Player(props: PlayerInput): JSX.Element {
     }
 
     const progress =
-        duration > 0 && Number.isFinite(duration) ? clamp(currentTime / duration, 0, 1) : 0
+        duration > 0 && Number.isFinite(duration)
+            ? clamp(displayTimeSec / duration, 0, 1)
+            : 0
 
     return (
         <div id="player" className='bg-[#353535] min-h-[10vh] flex flex-col gap-3 justify-center items-center px-6'>
@@ -147,7 +179,7 @@ function Player(props: PlayerInput): JSX.Element {
                 role="slider"
                 aria-valuemin={0}
                 aria-valuemax={Math.round(duration) || 0}
-                aria-valuenow={Math.round(currentTime)}
+                aria-valuenow={Math.round(displayTimeSec)}
                 aria-label="Seek"
                 className={`relative w-full h-2 rounded-full bg-stone-600 touch-none ${
                     remoteControlled
@@ -178,13 +210,13 @@ function Player(props: PlayerInput): JSX.Element {
                     type="button"
                     onClick={togglePlay}
                     disabled={!src || remoteControlled}
-                    aria-label={playing ? 'Pause' : 'Play'}
+                    aria-label={playingUi ? 'Pause' : 'Play'}
                     title={remoteControlled ? 'Controlled by the broadcaster' : undefined}
                     className="p-0 border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
                         <circle cx="15" cy="15" r="15" fill="white" strokeWidth="2" />
-                        {playing ? (
+                        {playingUi ? (
                             <>
                                 <rect x="10" y="9" width="3.5" height="12" rx="0.5" fill="black" />
                                 <rect x="16.5" y="9" width="3.5" height="12" rx="0.5" fill="black" />

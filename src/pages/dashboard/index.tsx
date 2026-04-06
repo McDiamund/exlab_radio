@@ -153,10 +153,21 @@ function Dashboard(): JSX.Element {
             if (!hs) return
             const d = el.duration
             if (!Number.isFinite(d) || d <= 0) return
-            const t = Math.min(hs.positionSec, Math.max(0, d - 0.05))
-            el.currentTime = t
-            if (hs.playing) void el.play().catch(() => {})
-            else el.pause()
+            const safeEnd = Math.max(0, d - 0.02)
+            const t = Math.min(Math.max(0, hs.positionSec), safeEnd)
+            if (!hs.playing) {
+                el.pause()
+                const atEnd =
+                    el.ended ||
+                    el.currentTime >= d - 0.4 ||
+                    hs.positionSec >= d - 1.25
+                if (atEnd) return
+                if (Math.abs(el.currentTime - t) > 1.0) el.currentTime = t
+                return
+            }
+            if (el.ended) el.currentTime = Math.min(t, safeEnd)
+            if (Math.abs(el.currentTime - t) > 0.5) el.currentTime = t
+            void el.play().catch(() => {})
         }
         el.addEventListener('loadedmetadata', alignToHost)
         alignToHost()
@@ -170,11 +181,32 @@ function Dashboard(): JSX.Element {
         if (el.readyState < HTMLMediaElement.HAVE_METADATA) return
         const d = el.duration
         if (!Number.isFinite(d) || d <= 0) return
-        const t = Math.min(hostSync.positionSec, Math.max(0, d - 0.05))
-        if (Math.abs(el.currentTime - t) > 0.45) el.currentTime = t
-        if (hostSync.playing) {
-            if (el.paused) void el.play().catch(() => {})
-        } else if (!el.paused) el.pause()
+
+        const safeEnd = Math.max(0, d - 0.02)
+        const tHost = Math.min(Math.max(0, hostSync.positionSec), safeEnd)
+
+        if (!hostSync.playing) {
+            el.pause()
+            const atEnd =
+                el.ended ||
+                el.currentTime >= d - 0.4 ||
+                hostSync.positionSec >= d - 1.25
+            if (atEnd) {
+                return
+            }
+            if (Math.abs(el.currentTime - tHost) > 1.2) {
+                el.currentTime = tHost
+            }
+            return
+        }
+
+        if (el.ended) {
+            el.currentTime = Math.min(tHost, safeEnd)
+        }
+        if (Math.abs(el.currentTime - tHost) > 0.55) {
+            el.currentTime = tHost
+        }
+        if (el.paused) void el.play().catch(() => {})
     }, [lanFollow, hostSync])
 
     useEffect(() => {
@@ -194,7 +226,17 @@ function Dashboard(): JSX.Element {
                     const artist = String(data.artist ?? '')
                     const desc = String(data.description ?? '')
                     const rawCover = data.coverUrl
-                    setHostSync({ revision: rev, positionSec, playing })
+                    setHostSync((prev) => {
+                        const next = { revision: rev, positionSec, playing }
+                        if (!prev) return next
+                        if (prev.revision !== next.revision) return next
+                        if (prev.playing !== next.playing) return next
+                        if (next.playing) return next
+                        if (Math.abs(prev.positionSec - next.positionSec) < 0.12) {
+                            return prev
+                        }
+                        return next
+                    })
                     setAudioSrc((prev) => {
                         const next = `${lanFollow.streamUrlWithoutQuery}?r=${rev}`
                         return prev === next ? prev : next
@@ -620,6 +662,8 @@ function Dashboard(): JSX.Element {
                     downloading={audioDownloading}
                     skipAutostart={Boolean(lanFollow)}
                     remoteControlled={Boolean(lanFollow)}
+                    remoteScrubberTimeSec={lanFollow && hostSync ? hostSync.positionSec : null}
+                    remoteScrubberPlaying={lanFollow && hostSync ? hostSync.playing : null}
                 />
             </div>
             <div id="right-info-section" className='w-[30%] flex-col gap-1'>

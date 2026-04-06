@@ -57,9 +57,16 @@ function Dashboard(): JSX.Element {
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const playlistFetchOkRef = useRef(true)
     const hostSyncRef = useRef<HostSyncSnapshot | null>(null)
+    const lastPollBroadcastRef = useRef<{
+        revision: number
+        positionSec: number
+        playing: boolean
+    } | null>(null)
 
     const [lanFollow, setLanFollow] = useState<LanFollowConfig | null>(null)
     const [hostSync, setHostSync] = useState<HostSyncSnapshot | null>(null)
+    /** Host /info timeline not advancing (e.g. host is downloading); listeners use element time for scrubber and skip seek fights. */
+    const [hostBroadcastTimelineFrozen, setHostBroadcastTimelineFrozen] = useState(false)
 
     const refreshPlaylists = useCallback(() => {
         return window.api
@@ -145,7 +152,7 @@ function Dashboard(): JSX.Element {
     hostSyncRef.current = hostSync
 
     useEffect(() => {
-        if (!lanFollow) return
+        if (!lanFollow || hostBroadcastTimelineFrozen) return
         const el = audioRef.current
         if (!el) return
         const alignToHost = () => {
@@ -172,10 +179,10 @@ function Dashboard(): JSX.Element {
         el.addEventListener('loadedmetadata', alignToHost)
         alignToHost()
         return () => el.removeEventListener('loadedmetadata', alignToHost)
-    }, [lanFollow, audioSrc])
+    }, [lanFollow, audioSrc, hostBroadcastTimelineFrozen])
 
     useEffect(() => {
-        if (!lanFollow || !hostSync) return
+        if (!lanFollow || !hostSync || hostBroadcastTimelineFrozen) return
         const el = audioRef.current
         if (!el) return
         if (el.readyState < HTMLMediaElement.HAVE_METADATA) return
@@ -207,7 +214,7 @@ function Dashboard(): JSX.Element {
             el.currentTime = tHost
         }
         if (el.paused) void el.play().catch(() => {})
-    }, [lanFollow, hostSync])
+    }, [lanFollow, hostSync, hostBroadcastTimelineFrozen])
 
     useEffect(() => {
         if (!lanFollow) return
@@ -226,12 +233,28 @@ function Dashboard(): JSX.Element {
                     const artist = String(data.artist ?? '')
                     const desc = String(data.description ?? '')
                     const rawCover = data.coverUrl
+
+                    const prevPoll = lastPollBroadcastRef.current
+                    const timelineFrozen =
+                        prevPoll !== null &&
+                        playing &&
+                        prevPoll.playing &&
+                        rev === prevPoll.revision &&
+                        Math.abs(positionSec - prevPoll.positionSec) < 0.06
+                    lastPollBroadcastRef.current = { revision: rev, positionSec, playing }
+                    setHostBroadcastTimelineFrozen(timelineFrozen)
+
                     setHostSync((prev) => {
                         const next = { revision: rev, positionSec, playing }
                         if (!prev) return next
                         if (prev.revision !== next.revision) return next
                         if (prev.playing !== next.playing) return next
-                        if (next.playing) return next
+                        if (next.playing) {
+                            if (Math.abs(prev.positionSec - next.positionSec) < 0.05) {
+                                return prev
+                            }
+                            return next
+                        }
                         if (Math.abs(prev.positionSec - next.positionSec) < 0.12) {
                             return prev
                         }
@@ -324,6 +347,8 @@ function Dashboard(): JSX.Element {
             /* use scan snapshot */
         }
 
+        lastPollBroadcastRef.current = null
+        setHostBroadcastTimelineFrozen(false)
         setLanFollow({ infoUrl, streamUrlWithoutQuery })
         setHostSync({ revision: rev, positionSec, playing })
         setAudioDownloading(false)
@@ -385,9 +410,8 @@ function Dashboard(): JSX.Element {
                 artist_picture: track.artist.picture_big,
             })
             const audio = await getAudio(track.title, track.artist.name)
-            setAudioSrc(audio.fileUrl)
             const coverForBroadcast = album?.cover_xl ?? track.album.cover_xl
-            void window.api
+            await window.api
                 .networkBroadcastSetNowPlaying({
                     audioFilePath: audio.filePath,
                     title: track.title,
@@ -398,6 +422,7 @@ function Dashboard(): JSX.Element {
                 .catch(() => {
                     /* broadcast metadata is best-effort */
                 })
+            setAudioSrc(audio.fileUrl)
         } catch (e) {
             alert(e)
         } finally {
@@ -662,7 +687,11 @@ function Dashboard(): JSX.Element {
                     downloading={audioDownloading}
                     skipAutostart={Boolean(lanFollow)}
                     remoteControlled={Boolean(lanFollow)}
-                    remoteScrubberTimeSec={lanFollow && hostSync ? hostSync.positionSec : null}
+                    remoteScrubberTimeSec={
+                        lanFollow && hostSync && !hostBroadcastTimelineFrozen
+                            ? hostSync.positionSec
+                            : null
+                    }
                     remoteScrubberPlaying={lanFollow && hostSync ? hostSync.playing : null}
                 />
             </div>

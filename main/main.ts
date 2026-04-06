@@ -16,6 +16,20 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 import { promisify } from 'node:util'
 
+let mainWindow: BrowserWindow | null = null
+
+if (!app.requestSingleInstanceLock()) {
+  process.exit(0)
+}
+
+app.on('second-instance', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  }
+})
+
 const execFileAsync = promisify(execFile)
 
 /** GUI-launched apps on macOS often miss Homebrew paths; yt-dlp/ffmpeg live there. */
@@ -490,12 +504,22 @@ function deleteOtherAudioFilesInDir(dir: string, keepPath: string): void {
 }
 
 function createWindow(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus()
+    return
+  }
+
   const win = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
+  })
+
+  mainWindow = win
+  win.on('closed', () => {
+    mainWindow = null
   })
 
   if (process.env.NODE_ENV === 'development') {
@@ -509,6 +533,12 @@ app.whenReady().then(() => {
   registerAppAudioProtocol()
   registerAppPlaylistCoverProtocol()
   createWindow()
+})
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+  }
 })
 
 app.on('window-all-closed', () => {

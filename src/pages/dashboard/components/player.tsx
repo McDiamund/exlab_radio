@@ -168,10 +168,10 @@ function Player(props: PlayerInput): JSX.Element {
             : 0
 
     return (
-        <div id="player" className='bg-[#353535] min-h-[10vh] flex flex-col gap-3 justify-center items-center px-6'>
+        <div id="player" className='bg-[#353535] min-h-[10vh] flex flex-col justify-center items-center px-6'>
             <div className='h-1' />
             {downloading && !src ? (
-                <p className="text-stone-400 text-sm self-start">Downloading audio…</p>
+                <p className="text-stone-400 text-xs self-start pb-2">Downloading audio…</p>
             ) : null}
             <div
                 id="scrubber"
@@ -181,7 +181,7 @@ function Player(props: PlayerInput): JSX.Element {
                 aria-valuemax={Math.round(duration) || 0}
                 aria-valuenow={Math.round(displayTimeSec)}
                 aria-label="Seek"
-                className={`relative w-full h-2 rounded-full bg-stone-600 touch-none ${
+                className={`relative w-full h-2 mb-3 rounded-full bg-stone-600 touch-none ${
                     remoteControlled
                         ? 'cursor-default opacity-50 pointer-events-none'
                         : src

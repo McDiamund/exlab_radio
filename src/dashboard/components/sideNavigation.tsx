@@ -1,5 +1,5 @@
 import React, { JSX } from 'react'
-import { DeezerAlbum, DeezerTrack } from '../../../contexts/SongContext'
+import { DeezerAlbum, DeezerTrack } from '../../contexts/SongContext'
 import type { LocalPlaylist } from './createPlaylistModal'
 import TrackAddToPlaylistMenu from './trackAddToPlaylistMenu'
 

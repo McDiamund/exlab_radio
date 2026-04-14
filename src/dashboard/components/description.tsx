@@ -1,5 +1,5 @@
 import React, { JSX, useEffect } from 'react'
-import { useSongContext } from '../../../contexts/SongContext'
+import { useSongContext } from '../../contexts/SongContext'
 
 export interface DescriptionInput {
     track_title?: string,

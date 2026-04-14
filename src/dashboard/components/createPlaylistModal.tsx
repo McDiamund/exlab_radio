@@ -1,5 +1,5 @@
 import React, { JSX, useCallback, useState } from 'react'
-import type { DeezerTrack } from '../../../contexts/SongContext'
+import type { DeezerTrack } from '../../contexts/SongContext'
 
 export type LocalPlaylist = {
     id: string

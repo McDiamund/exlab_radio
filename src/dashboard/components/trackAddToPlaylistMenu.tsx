@@ -1,5 +1,5 @@
 import React, { JSX, useEffect, useRef, useState } from 'react'
-import { DeezerAlbum, DeezerTrack } from '../../../contexts/SongContext'
+import { DeezerAlbum, DeezerTrack } from '../../contexts/SongContext'
 import type { LocalPlaylist } from './createPlaylistModal'
 
 /** Deezer album tracklist items often omit `track.album`; use the open album when saving to a playlist. */

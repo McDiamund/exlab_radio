@@ -9,8 +9,8 @@ import {
     DeezerSearchResult,
     DeezerTrack,
     useSongContext,
-} from '../../contexts/SongContext'
-import { buildBackgroundGradientFromDataUrl } from '../../utils/extractCoverGradient'
+} from '../contexts/SongContext'
+import { buildBackgroundGradientFromDataUrl } from '../utils/extractCoverGradient'
 import SideNavigation, { TrackList } from './components/sideNavigation'
 import AudioDownloadSetup from './components/audioDownloadSetup'
 import NetworkStreamPanel, {

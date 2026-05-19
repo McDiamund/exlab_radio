@@ -1,0 +1,23 @@
+{
+  "name": "exlab_radio",
+  "version": "1.0.0",
+  "description": "Music streaming software for EXLAB at Georgia State University",
+  "homepage": "https://github.com/McDiamund/exlab_radio#readme",
+  "bugs": {
+    "url": "https://github.com/McDiamund/exlab_radio/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/McDiamund/exlab_radio.git"
+  },
+  "license": "ISC",
+  "author": "Treadway Designs LLC.",
+  "type": "commonjs",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "electron": "^42.1.0"
+  }
+}

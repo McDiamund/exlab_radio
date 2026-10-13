@@ -1,3 +1,6 @@
 body {
     background-color: hsl(155, 96%, 22%);
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
 }

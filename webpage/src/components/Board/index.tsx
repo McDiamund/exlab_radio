@@ -18,11 +18,10 @@ export default function Board(props: IAppProps) {
             const tracks = style.gridTemplateColumns.split(" ");
 
             const cols = tracks.length;
-            const cellSize = parseFloat(tracks[0]);
-            const gap = parseFloat(style.rowGap);
+            const cellSize = 110;
 
-            const available = window.innerHeight - el.getBoundingClientRect().top - 70;
-            const rows = Math.ceil((available + gap) / (cellSize + gap));
+            const available = el.getBoundingClientRect().bottom - el.getBoundingClientRect().top - 100;
+            const rows = Math.ceil((available) / (cellSize));
 
             setCells(cols * rows);
         };
@@ -40,10 +39,12 @@ export default function Board(props: IAppProps) {
     }, []);
 
     return (
-        <div ref={ref} className={board.grid}>
-        {Array.from({ length: cells }, (_, i) => (
-            <UnitBox key={i} />
-        ))}
+        <div className={board.container}>
+            <div ref={ref} className={board.grid}>
+                {Array.from({ length: cells }, (_, i) => (
+                    <UnitBox key={i} />
+                ))}
+            </div>
         </div>
     );
 }

@@ -20,9 +20,9 @@ export default function Board(props: IAppProps) {
             const tracks = style.gridTemplateColumns.split(" ");
 
             const cols = tracks.length;
-            const cellSize = 110;
+            const cellSize = parseFloat(tracks[0]);
 
-            const available = el.getBoundingClientRect().bottom - el.getBoundingClientRect().top - 100;
+            const available = el.getBoundingClientRect().bottom - el.getBoundingClientRect().top;
             const rows = Math.ceil((available) / (cellSize));
 
             setCells(cols * rows);

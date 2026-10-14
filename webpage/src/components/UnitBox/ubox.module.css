@@ -1,4 +1,8 @@
 
 .ubox {
     border: rgb(193, 253, 83) solid 1px;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    padding-right: 6px;
 }

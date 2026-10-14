@@ -8,6 +8,8 @@ export interface IAppProps {
 export default function Board(props: IAppProps) {
     const ref = useRef<HTMLDivElement>(null);
     const [cells, setCells] = useState(0);
+    const [cols, setCols] = useState(0);
+    const [rows, setRows] = useState(0);
 
     useEffect(() => {
         const el = ref.current;
@@ -24,6 +26,8 @@ export default function Board(props: IAppProps) {
             const rows = Math.ceil((available) / (cellSize));
 
             setCells(cols * rows);
+            setCols(cols);
+            setRows(rows);
         };
 
         update();
@@ -42,7 +46,7 @@ export default function Board(props: IAppProps) {
         <div className={board.container}>
             <div ref={ref} className={board.grid}>
                 {Array.from({ length: cells }, (_, i) => (
-                    <UnitBox key={i} />
+                    <UnitBox key={i} pos={i + 1} rows={rows} cols={cols} />
                 ))}
             </div>
         </div>

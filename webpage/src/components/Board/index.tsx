@@ -46,7 +46,7 @@ export default function Board(props: IAppProps) {
         <div className={board.container}>
             <div ref={ref} className={board.grid}>
                 {Array.from({ length: cells }, (_, i) => (
-                    <UnitBox key={i} pos={i + 1} rows={rows} cols={cols} />
+                    <UnitBox key={i} pos={i + 1} maxRows={rows} maxCols={cols} />
                 ))}
             </div>
         </div>

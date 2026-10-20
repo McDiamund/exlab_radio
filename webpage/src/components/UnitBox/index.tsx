@@ -18,8 +18,12 @@ export default function UnitBox(props: UnitBoxProps) {
     return col;
   }
   
-  const isTopCorner = () => {
-    return (row == 1) && (col == props.maxCols || col == 1)
+  const isTopLeftCorner = () => {
+    return (row == 1) && (col == 1)
+  }
+
+  const isTopRightCorner = () => {
+    return (row == 1) && (col == props.maxCols)
   }
 
   const isBottomCorner = () => {
@@ -27,14 +31,39 @@ export default function UnitBox(props: UnitBoxProps) {
   }
 
   if (isOuter)
-    return (
-      <div className={ubox.ubox}>
-          <>
-            <h1 className={`green sans`}>{unit()}</h1>
-            <h3>{`(${row},${col})`}</h3>
-          </>
-      </div>
-    );
+    if (isBottomCorner()) {
+      return (
+        <div className={`${ubox.ubox} ${ubox.bottomCorner}`}>
+              <h1 className={`green sans`}>{col}</h1>
+              <h1 className={`green sans`}>{row}</h1>
+        </div>
+      );
+    }
+    else if (isTopRightCorner()) {
+      return (
+        <div className={`${ubox.ubox} ${ubox.topCorner}`}>
+              <h1 className={`green sans`}>{col}</h1>
+              <span style={{flex: 1}} />
+              <h1 className={`green sans`}>{row}</h1>
+        </div>
+      );
+    }
+    else if (isTopLeftCorner()) {
+      return (
+        <div className={`${ubox.ubox} ${ubox.topCorner}`}>
+              <h1 className={`green sans`}>{col}</h1>
+        </div>
+      );
+    }
+    else
+      return (
+        <div className={ubox.ubox}>
+            <>
+              <h1 className={`green sans`}>{unit()}</h1>
+              {/* <h3>{`(${row},${col})`}</h3> */}
+            </>
+        </div>
+      );
   else
     return (
       <div className={ubox.ubox}>

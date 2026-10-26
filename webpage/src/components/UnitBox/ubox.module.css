@@ -5,11 +5,12 @@
     flex-direction: column-reverse;
     align-items: flex-end;
     padding-right: 6px;
-    box-sizing: border-box
+    box-sizing: border-box;
 }
 
 .ubox:hover {
     background-color: rgb(193, 253, 83);
+    cursor: pointer
 }
 
 .topCorner {
@@ -19,6 +20,6 @@
 }
 
 .bottomCorner {
-    flex-direction: column;
-    aspect-ratio: 1;
+    
 }
+
